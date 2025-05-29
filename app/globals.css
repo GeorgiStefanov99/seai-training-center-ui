@@ -1,0 +1,159 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 220 70% 20%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 220 30% 90%;
+    --secondary-foreground: 220 70% 20%;
+
+    --muted: 220 30% 90%;
+    --muted-foreground: 220 40% 40%;
+
+    --accent: 220 30% 90%;
+    --accent-foreground: 220 70% 20%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 30% 80%;
+    --input: 220 30% 80%;
+    --ring: 220 70% 20%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 220 70% 10%;
+    --foreground: 210 40% 98%;
+
+    --card: 220 70% 15%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 220 70% 15%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 220 70% 50%;
+    --primary-foreground: 220 70% 10%;
+
+    --secondary: 220 30% 30%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 220 30% 30%;
+    --muted-foreground: 220 40% 70%;
+
+    --accent: 220 30% 30%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 30% 40%;
+    --input: 220 30% 40%;
+    --ring: 220 70% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.text-navy {
+  color: #1a2b49;
+}
+
+.bg-navy {
+  background-color: #1a2b49;
+}
+
+.perspective {
+  perspective: 2000px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1s infinite;
+}
+
+/* Leaflet Map Styles */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Fix for marker icons */
+.leaflet-default-icon-path {
+  background-image: url(/images/marker-icon.png);
+}
+
+/* MarkerCluster styles */
+.marker-cluster-small {
+  background-color: rgba(181, 226, 140, 0.6);
+}
+.marker-cluster-small div {
+  background-color: rgba(110, 204, 57, 0.6);
+}
+
+.marker-cluster-medium {
+  background-color: rgba(241, 211, 87, 0.6);
+}
+.marker-cluster-medium div {
+  background-color: rgba(240, 194, 12, 0.6);
+}
+
+.marker-cluster-large {
+  background-color: rgba(253, 156, 115, 0.6);
+}
+.marker-cluster-large div {
+  background-color: rgba(241, 128, 23, 0.6);
+}
+
+.marker-cluster {
+  background-clip: padding-box;
+  border-radius: 20px;
+}
+.marker-cluster div {
+  width: 30px;
+  height: 30px;
+  margin-left: 5px;
+  margin-top: 5px;
+  text-align: center;
+  border-radius: 15px;
+  font: 12px "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+.marker-cluster span {
+  line-height: 30px;
+}

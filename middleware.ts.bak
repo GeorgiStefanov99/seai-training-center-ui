@@ -1,0 +1,71 @@
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+// List of public routes that don't require authentication
+const publicRoutes = ['/login', '/register', '/']
+
+// List of protected routes that require authentication
+const protectedRoutes = [
+  '/dashboard',
+  '/seafarers',
+  '/vessels',
+  '/voyages',
+  '/documents',
+  '/documents/scan',
+  '/documents/verify',
+  '/training',
+  '/smart-scanner',
+  '/ai-assistant',
+  '/about',
+  '/seafarers/add',
+  '/chat-assistant'
+]
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  const isPublicRoute = publicRoutes.includes(pathname)
+  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
+  
+  // Get authentication data from cookies or localStorage via request headers
+  const userId = request.cookies.get('userId')?.value
+  const accessToken = request.cookies.get('accessToken')?.value
+  
+  // Check for authentication in localStorage via custom header (set by client-side code)
+  const authHeader = request.headers.get('x-auth-state')
+  
+  // Determine if user is authenticated through either cookies or localStorage
+  const isAuthenticated = (userId && accessToken) || !!authHeader
+
+  // Redirect authenticated users from landing page (/) to dashboard
+  if (isAuthenticated && pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // Redirect authenticated users trying to access login/register to dashboard
+  if (isAuthenticated && isPublicRoute && pathname !== '/') {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // Redirect unauthenticated users trying to access protected routes to login
+  if (!isAuthenticated && isProtectedRoute) {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('from', pathname)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  return NextResponse.next()
+}
+
+// See "Matching Paths" below to learn more
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
+}
