@@ -1,0 +1,119 @@
+// Define the possible ranks for attendees
+export type AttendeeRank = 
+  | "CAPTAIN"
+  | "CHIEF_OFFICER"
+  | "FIRST_OFFICER"
+  | "SECOND_OFFICER"
+  | "THIRD_OFFICER"
+  | "DECK_CADET"
+  | "CHIEF_ENGINEER"
+  | "FIRST_ENGINEER"
+  | "SECOND_ENGINEER"
+  | "THIRD_ENGINEER"
+  | "FOURTH_ENGINEER"
+  | "ELECTRO_TECHNICAL_OFFICER"
+  | "BOATSWAIN"
+  | "ABLE_SEAMAN"
+  | "ORDINARY_SEAMAN"
+  | "CHIEF_STEWARD"
+  | "STEWARD"
+  | "MESSMAN"
+  | "FITTER"
+  | "PUMPMAN"
+  | "COOK"
+  | "MOTORMAN"
+  | "OILER"
+  | "WELDER"
+  | "REFRIGERATION_ENGINEER"
+  | "TRAINEE_OFFICER"
+  | "RADIO_OFFICER"
+  | "DECKHAND_RIVER"
+  | "SAILOR_RIVER"
+  | "BOSUN_RIVER"
+  | "HELMSMAN_RIVER"
+  | "RIVER_PILOT"
+  | "CHIEF_ENGINEER_RIVER"
+  | "SECOND_ENGINEER_RIVER"
+  | "ASSISTANT_ENGINEER_RIVER"
+  | "ELECTRICIAN_RIVER"
+  | "PLUMBER_RIVER"
+  | "MOTORMAN_RIVER"
+  | "OILER_RIVER"
+  | "CHIEF_STEWARD_RIVER"
+  | "HOTEL_MANAGER"
+  | "ASSISTANT_HOTEL_MANAGER"
+  | "HOTEL_ADMINISTRATOR"
+  | "FRONT_OFFICE_MANAGER"
+  | "RECEPTION_SUPERVISOR"
+  | "RECEPTIONIST"
+  | "GUEST_SERVICE_AGENT"
+  | "NIGHT_AUDITOR"
+  | "MAITRE_D"
+  | "HEAD_WAITER"
+  | "RESTAURANT_SUPERVISOR"
+  | "WAITER"
+  | "ASSISTANT_WAITER"
+  | "BAR_MANAGER"
+  | "BEVERAGE_MANAGER"
+  | "BARTENDER"
+  | "BAR_WAITER"
+  | "BAR_STEWARD"
+  | "EXECUTIVE_CHEF"
+  | "SOUS_CHEF"
+  | "CHEF_DE_PARTIE"
+  | "COMMIS_CHEF"
+  | "PASTRY_CHEF"
+  | "BAKER"
+  | "KITCHEN_STEWARD"
+  | "DISHWASHER"
+  | "HOUSEKEEPING_MANAGER"
+  | "CABIN_STEWARD"
+  | "LAUNDRY_ATTENDANT"
+  | "CLEANER"
+  | "UTILITY_CLEANER"
+  | "CRUISE_DIRECTOR"
+  | "ACTIVITIES_MANAGER"
+  | "TOUR_MANAGER"
+  | "SHORE_EXCURSION_MANAGER"
+  | "ENTERTAINER"
+  | "PERFORMER"
+  | "MUSICIAN"
+  | "MASSAGE_THERAPIST"
+  | "SPA_ATTENDANT"
+  | "HAIRDRESSER"
+  | "BEAUTY_THERAPIST"
+  | "FITNESS_INSTRUCTOR";
+
+// Base attendee properties used for creating and updating
+export interface AttendeeBase {
+  name: string;
+  surname: string;
+  email: string;
+  telephone: string;
+  rank: AttendeeRank;
+  remark?: string;
+}
+
+// Interface for creating a new attendee (POST request)
+export interface CreateAttendeeRequest extends AttendeeBase {}
+
+// Interface for updating an existing attendee (PUT request)
+export interface UpdateAttendeeRequest extends AttendeeBase {}
+
+// Full attendee interface with all properties (GET response)
+export interface Attendee extends AttendeeBase {
+  id: string;
+  trainingCenterId: string;
+  courseId?: string;
+  userId?: string;
+  onlineCourseId?: string;
+}
+
+// Response type for the GET attendees endpoint
+export type GetAttendeesResponse = Attendee[];
+
+// Parameters for attendee API requests
+export interface AttendeeApiParams {
+  trainingCenterId: string;
+  attendeeId?: string;
+}
