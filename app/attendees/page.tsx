@@ -8,13 +8,15 @@ import { Attendee } from "@/types/attendee"
 import { getAttendees, deleteAttendee } from "@/services/attendeeService"
 import { RANK_LABELS } from "@/lib/rank-labels"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Pencil, Trash2, Search } from "lucide-react"
+import { PlusCircle, Pencil, Trash2, Search, ChevronRight } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { AttendeeDialog, DeleteAttendeeDialog } from "@/components/dialogs/attendee-dialog"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
+import { useRouter } from "next/navigation"
 
 export default function AttendeesPage() {
+  const router = useRouter()
   const { user } = useAuth()
   const [attendees, setAttendees] = useState<Attendee[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -149,6 +151,17 @@ export default function AttendeesPage() {
     setSelectedAttendee(undefined)
     setCreateDialogOpen(true)
   }
+  
+  // Navigate to attendee detail page
+  const navigateToAttendeeDetail = (attendee: Attendee) => {
+    console.log('DEBUG - Navigation - Attendee clicked:', attendee)
+    if (attendee.id) {
+      console.log('DEBUG - Navigation - Navigating to:', `/attendees/attendee-detail?id=${attendee.id}`)
+      router.push(`/attendees/attendee-detail?id=${attendee.id}`)
+    } else {
+      console.log('DEBUG - Navigation - Missing attendee ID, cannot navigate')
+    }
+  }
 
   const handleEdit = (attendee: Attendee) => {
     setSelectedAttendee(attendee)
@@ -218,6 +231,31 @@ export default function AttendeesPage() {
           columns={columns}
           data={filteredAttendees}
           isLoading={isLoading}
+          rowRender={(row, index) => (
+            <tr 
+              key={row.id || index} 
+              className="h-10 cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => navigateToAttendeeDetail(row)}
+            >
+              {columns.map((column) => (
+                <td key={column.key} className="px-2 py-1 text-xs">
+                  {column.key === 'actions' ? (
+                    // For the actions column, we want to prevent the row click event
+                    <div onClick={(e) => e.stopPropagation()}>
+                      {column.cell ? column.cell(row, index) : null}
+                    </div>
+                  ) : (
+                    column.cell
+                      ? column.cell(row, index)
+                      : (column.accessorKey ? (row as any)[column.accessorKey] : null)
+                  )}
+                </td>
+              ))}
+              <td className="px-2 py-1 text-xs text-muted-foreground">
+                <ChevronRight className="h-4 w-4" />
+              </td>
+            </tr>
+          )}
           emptyState={
             <div className="text-center">
               <p className="text-muted-foreground mb-2">No attendees found</p>
