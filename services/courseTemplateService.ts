@@ -19,7 +19,7 @@ const STORAGE_KEYS = {
 };
 
 // Helper function to get the authentication token from localStorage
-const getAuthToken = (): string | null => {
+export const getAuthToken = (): string | null => {
   if (typeof window === 'undefined') return null;
   
   try {
@@ -47,7 +47,7 @@ const getAuthToken = (): string | null => {
 };
 
 // Helper function to get auth headers
-const getAuthHeaders = (token: string | null): { Authorization: string } | {} => {
+export const getAuthHeaders = (token: string | null): { Authorization: string } | {} => {
   if (token) {
     return { Authorization: `Bearer ${token}` };
   }

@@ -9,9 +9,13 @@ import { Button } from "@/components/ui/button"
 import { CourseTemplate, ActiveCourse } from "@/types/course-template"
 import { getCourseTemplateById, getActiveCoursesForTemplate } from "@/services/courseTemplateService"
 import { useAuth } from "@/hooks/useAuth"
-import { Loader2, Edit, ArrowLeft, Calendar, Users, DollarSign, BookOpen } from "lucide-react"
+import { Loader2, Edit, ArrowLeft, Calendar, Users, DollarSign, BookOpen, Trash2, UserPlus, MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
+import { deleteCourse } from "@/services/courseService"
 import { CourseTemplateDialog } from "@/components/dialogs/course-template-dialog"
+import { CourseSchedulingDialog } from "@/components/dialogs/course-scheduling-dialog"
+import { CourseEditDialog } from "@/components/dialogs/course-edit-dialog"
+import { DeleteConfirmationDialog } from "@/components/dialogs/delete-confirmation-dialog"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
@@ -93,82 +97,75 @@ export default function CourseTemplateDetailPage() {
   const [activeCourses, setActiveCourses] = useState<ActiveCourse[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [templateEditDialogOpen, setTemplateEditDialogOpen] = useState(false)
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+  const [courseEditDialogOpen, setCourseEditDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [selectedCourse, setSelectedCourse] = useState<ActiveCourse | null>(null)
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
   const templateId = searchParams.get("id")
 
-  useEffect(() => {
-    const fetchTemplateData = async () => {
-      // Debug: Log the parameters we're using for the API call
-      console.log('DEBUG - Template Detail - Fetch params:', { trainingCenterId, templateId })
-      
-      if (!templateId) {
-        console.log('DEBUG - Template Detail - Missing template ID')
-        setIsLoading(false)
-        setError("Missing template ID")
-        return
-      }
-      
-      try {
-        setIsLoading(true)
-        
-        // For static site generation and Jamstack architecture, use mock data if available
-        if (MOCK_TEMPLATES[templateId]) {
-          console.log('DEBUG - Template Detail - Using mock data for ID:', templateId)
-          setTimeout(() => {
-            setTemplate(MOCK_TEMPLATES[templateId])
-            setActiveCourses(MOCK_ACTIVE_COURSES[templateId] || [])
-            setError(null)
-            setIsLoading(false)
-          }, 500) // Simulate API delay
-          return
-        }
-        
-        // If no mock data or we want to try the real API
-        if (trainingCenterId) {
-          console.log('DEBUG - Template Detail - Calling API with params:', { trainingCenterId, templateId })
-          
-          // Fetch template details and active courses in parallel
-          const [templateData, coursesData] = await Promise.all([
-            getCourseTemplateById({
-              trainingCenterId,
-              courseTemplateId: templateId
-            }),
-            getActiveCoursesForTemplate({
-              trainingCenterId,
-              courseTemplateId: templateId
-            })
-          ])
-          
-          console.log('DEBUG - Template Detail - API responses:', { templateData, coursesData })
-          setTemplate(templateData)
-          setActiveCourses(coursesData)
-          setError(null)
-        } else {
-          throw new Error('Training center ID is required')
-        }
-      } catch (err) {
-        console.error('DEBUG - Template Detail - Error fetching details:', err)
-        
-        // Fallback to mock data if API call fails
-        if (MOCK_TEMPLATES[templateId]) {
-          console.log('DEBUG - Template Detail - Falling back to mock data for ID:', templateId)
-          setTemplate(MOCK_TEMPLATES[templateId])
-          setActiveCourses(MOCK_ACTIVE_COURSES[templateId] || [])
-          setError(null)
-        } else {
-          setError('Failed to load course template details. Please try again later.')
-        }
-      } finally {
-        setIsLoading(false)
-      }
+  // Function to fetch template data
+  const fetchTemplateData = async () => {
+    // Debug: Log the parameters we're using for the API call
+    console.log('Fetching template with ID:', templateId, 'for training center:', trainingCenterId)
+    
+    if (!templateId || !trainingCenterId) {
+      setError("Missing template ID or training center ID")
+      setIsLoading(false)
+      return
     }
-
+    
+    try {
+      // Fetch course template details
+      const data = await getCourseTemplateById({
+        trainingCenterId,
+        courseTemplateId: templateId
+      })
+      setTemplate(data)
+      
+      // Fetch active courses for this template
+      const coursesData = await getActiveCoursesForTemplate({
+        trainingCenterId,
+        courseTemplateId: templateId
+      })
+      setActiveCourses(coursesData)
+    } catch (err) {
+      console.error('Error fetching template details:', err)
+      setError("Failed to load template details. Please try again.")
+      
+      // Use mock data for development/testing
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Using mock data for development')
+        setTemplate(MOCK_TEMPLATES[templateId || ""] || null)
+        setActiveCourses(MOCK_ACTIVE_COURSES[templateId || ""] || [])
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  
+  useEffect(() => {
+    if (!templateId) {
+      console.log('DEBUG - Template Detail - Missing template ID')
+      router.push('/course-templates')
+      return
+    }
+    
+    if (!trainingCenterId) {
+      console.log('DEBUG - Template Detail - Missing training center ID')
+      setError("You must be logged in to view template details")
+      setIsLoading(false)
+      return
+    }
+    
+    // Call fetchTemplateData when component mounts or dependencies change
     fetchTemplateData()
-  }, [trainingCenterId, templateId])
+  }, [templateId, trainingCenterId, router])
 
+  // Handle successful template edit
   const handleEditSuccess = async () => {
     if (!trainingCenterId || !templateId) return
     
@@ -184,6 +181,55 @@ export default function CourseTemplateDetailPage() {
       console.error('Error refreshing template details:', err)
     } finally {
       setIsLoading(false)
+    }
+  }
+  
+  // Refresh courses after edit or delete
+  const refreshCourses = async () => {
+    if (!trainingCenterId || !templateId) return
+    
+    try {
+      setIsLoading(true)
+      const coursesData = await getActiveCoursesForTemplate({
+        trainingCenterId,
+        courseTemplateId: templateId
+      })
+      setActiveCourses(coursesData)
+    } catch (err) {
+      console.error('Error refreshing courses:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  
+  // Handle course edit
+  const handleEditCourse = (course: ActiveCourse) => {
+    setSelectedCourse(course)
+    setCourseEditDialogOpen(true)
+  }
+  
+  // Handle course delete
+  const handleDeleteCourse = (course: ActiveCourse) => {
+    setSelectedCourse(course)
+    setDeleteDialogOpen(true)
+  }
+  
+  // Confirm course deletion
+  const confirmDeleteCourse = async () => {
+    if (!trainingCenterId || !selectedCourse) return
+    
+    try {
+      await deleteCourse({
+        trainingCenterId,
+        courseId: selectedCourse.id
+      })
+      
+      toast.success("Course deleted successfully")
+      refreshCourses()
+    } catch (err) {
+      console.error('Error deleting course:', err)
+      toast.error("Failed to delete course. Please try again.")
+      throw err // Re-throw to be caught by the confirmation dialog
     }
   }
 
@@ -209,7 +255,9 @@ export default function CourseTemplateDetailPage() {
   }
 
   // Get status badge variant
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusBadgeVariant = (status?: string) => {
+    if (!status) return 'outline'
+    
     switch (status) {
       case 'SCHEDULED':
         return 'secondary'
@@ -253,41 +301,48 @@ export default function CourseTemplateDetailPage() {
   }
 
   return (
-    <PageLayout title={template.name}>
-      <div className="space-y-6">
-        {/* Header with back button */}
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => router.push('/course-templates')}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Course Templates
-          </Button>
-        </div>
-        
-        {/* Template Header */}
-        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-          <div className="flex-1 space-y-2">
-            <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-              <h1 className="text-2xl font-bold">{template.name}</h1>
-              <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
-                {formatCurrency(template.price, template.currency)}
+    <PageLayout>
+      <div className="container py-6 space-y-6">
+        {/* Back button */}
+        <Button
+          variant="outline"
+          className="mb-6"
+          onClick={() => router.push('/course-templates')}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Templates
+        </Button>
+
+        {/* Template header */}
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+          <div className="space-y-4">
+            <h1 className="text-3xl font-bold tracking-tight">
+              {template?.name || "Loading template..."}
+            </h1>
+            
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center text-muted-foreground">
+                <Users className="mr-2 h-4 w-4" />
+                {template?.maxSeats || 0} max seats
+              </div>
+              
+              <div className="flex items-center text-muted-foreground">
+                <DollarSign className="mr-2 h-4 w-4" />
+                {formatCurrency(template?.price || 0, template?.currency || "USD")}
               </div>
             </div>
             
             <p className="text-muted-foreground">
-              {template.description || "No description provided"}
+              {template?.description || "No description provided"}
             </p>
           </div>
           
-          <Button onClick={() => setEditDialogOpen(true)} className="shrink-0">
+          <Button onClick={() => setTemplateEditDialogOpen(true)} className="shrink-0">
             <Edit className="mr-2 h-4 w-4" />
             Edit Template
           </Button>
         </div>
-        
+
         {/* Tabs */}
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
@@ -371,6 +426,7 @@ export default function CourseTemplateDetailPage() {
                         <TableHead>End Date</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Enrolled</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -381,13 +437,45 @@ export default function CourseTemplateDetailPage() {
                           <TableCell>{formatDate(course.endDate)}</TableCell>
                           <TableCell>
                             <Badge variant={getStatusBadgeVariant(course.status)}>
-                              {course.status.replace('_', ' ')}
+                              {course.status ? course.status.replace('_', ' ') : 'Unknown'}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Users className="h-3 w-3" />
                               <span>{course.enrolledAttendees} / {template.maxSeats}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditCourse(course)}
+                                title="Edit Course"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  // Assign seafarer functionality will be implemented later
+                                  toast.info("Assign seafarer functionality coming soon");
+                                }}
+                                title="Assign Seafarer"
+                              >
+                                <UserPlus className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteCourse(course)}
+                                title="Delete Course"
+                                className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -407,7 +495,10 @@ export default function CourseTemplateDetailPage() {
                 )}
               </CardContent>
               <CardFooter>
-                <Button className="w-full sm:w-auto">
+                <Button 
+                  className="w-full sm:w-auto" 
+                  onClick={() => setScheduleDialogOpen(true)}
+                >
                   <Calendar className="mr-2 h-4 w-4" />
                   Schedule New Course
                 </Button>
@@ -419,11 +510,40 @@ export default function CourseTemplateDetailPage() {
       
       {/* Edit Course Template Dialog */}
       <CourseTemplateDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
+        open={templateEditDialogOpen}
+        onOpenChange={setTemplateEditDialogOpen}
         template={template}
         onSuccess={handleEditSuccess}
         mode="edit"
+      />
+      
+      {/* Course Scheduling Dialog */}
+      {template && (
+        <CourseSchedulingDialog
+          open={scheduleDialogOpen}
+          onOpenChange={setScheduleDialogOpen}
+          template={template}
+          onSuccess={fetchTemplateData}
+        />
+      )}
+      
+      {/* Course Edit Dialog */}
+      {selectedCourse && (
+        <CourseEditDialog
+          open={courseEditDialogOpen}
+          onOpenChange={setCourseEditDialogOpen}
+          course={selectedCourse}
+          onSuccess={refreshCourses}
+        />
+      )}
+      
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Course"
+        description={`Are you sure you want to delete the course "${selectedCourse?.name || ''}"? This action cannot be undone.`}
+        onConfirm={confirmDeleteCourse}
       />
     </PageLayout>
   )
