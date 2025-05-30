@@ -8,6 +8,7 @@ import {
   X,
   ChevronRight,
   ChevronLeft,
+  BookOpen
 } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -19,6 +20,7 @@ const getMenuItems = (userType: string) => {
   const commonItems = [
     { name: "Dashboard", icon: BarChart2, href: "/dashboard" },
     { name: "Attendees", icon: User, href: "/attendees" },
+    { name: "Course Templates", icon: BookOpen, href: "/course-templates" },
   ]
 
   return commonItems
