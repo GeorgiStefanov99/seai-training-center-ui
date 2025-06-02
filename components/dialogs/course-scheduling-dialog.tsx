@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -26,10 +26,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import { Checkbox } from "@/components/ui/checkbox"
 import { createCourse } from "@/services/courseService"
-import { CourseTemplate } from "@/types/course-template"
+import { CourseTemplate, WaitlistRecord } from "@/types/course-template"
 import { CreateCourseRequest } from "@/types/course"
 import { useAuth } from "@/hooks/useAuth"
+import { getWaitlistRecordsByTemplate, deleteWaitlistRecord } from "@/services/waitlistService"
+import { assignAttendeeToCourse } from "@/services/courseAttendeeService"
 
 // Define the form schema with validation
 const formSchema = z.object({
@@ -92,6 +95,9 @@ export function CourseSchedulingDialog({
 }: CourseSchedulingDialogProps) {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [waitlistRecords, setWaitlistRecords] = useState<WaitlistRecord[]>([]);
+  const [selectedWaitlistAttendees, setSelectedWaitlistAttendees] = useState<string[]>([]);
+  const [isLoadingWaitlist, setIsLoadingWaitlist] = useState(false);
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || "";
@@ -112,6 +118,49 @@ export function CourseSchedulingDialog({
     },
   });
 
+  // Fetch waitlist records when dialog opens
+  useEffect(() => {
+    if (open && template.id && trainingCenterId) {
+      fetchWaitlistRecords();
+    } else {
+      // Reset selected attendees when dialog closes
+      setSelectedWaitlistAttendees([]);
+    }
+  }, [open, template.id, trainingCenterId]);
+
+  // Fetch waitlist records for the template
+  const fetchWaitlistRecords = async () => {
+    if (!template.id || !trainingCenterId) return;
+    
+    setIsLoadingWaitlist(true);
+    try {
+      const records = await getWaitlistRecordsByTemplate({
+        trainingCenterId,
+        courseTemplateId: template.id
+      });
+      
+      // Filter to only show WAITING status records
+      const waitingRecords = records.filter(record => record.status === "WAITING");
+      setWaitlistRecords(waitingRecords);
+    } catch (error) {
+      console.error("Error fetching waitlist records:", error);
+      toast.error("Failed to load waitlist records");
+    } finally {
+      setIsLoadingWaitlist(false);
+    }
+  };
+
+  // Toggle selection of waitlist attendee
+  const toggleWaitlistAttendee = (attendeeId: string) => {
+    setSelectedWaitlistAttendees(prev => {
+      if (prev.includes(attendeeId)) {
+        return prev.filter(id => id !== attendeeId);
+      } else {
+        return [...prev, attendeeId];
+      }
+    });
+  };
+
   // Handle form submission
   const onSubmit = async (data: FormValues) => {
     if (!trainingCenterId) {
@@ -130,29 +179,73 @@ export function CourseSchedulingDialog({
       const startTimeFormatted = `${data.startTime}:00`;
       const endTimeFormatted = `${data.endTime}:00`;
 
-      // Create course request payload
-      const courseData: CreateCourseRequest = {
+      // Create the course request payload
+      const courseRequest: CreateCourseRequest = {
         name: data.name,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
+        startDate: format(startDate, "yyyy-MM-dd"),
+        endDate: format(endDate, "yyyy-MM-dd"),
         startTime: startTimeFormatted,
         endTime: endTimeFormatted,
         price: data.price,
         currency: data.currency,
         maxSeats: data.maxSeats,
-        description: data.description || "",
+        description: data.description,
         templateId: template.id
       };
 
-      // Call API to create course
-      await createCourse({ trainingCenterId }, courseData);
+      // Call the API to create the course
+      const createdCourse = await createCourse({ trainingCenterId }, courseRequest);
+      
+      // If we have selected waitlist attendees, assign them to the course
+      if (selectedWaitlistAttendees.length > 0) {
+        const assignPromises = selectedWaitlistAttendees.map(async (attendeeId) => {
+          try {
+            // First assign the attendee to the course
+            await assignAttendeeToCourse({
+              trainingCenterId,
+              courseId: createdCourse.id,
+              attendeeId
+            });
+            
+            // Find the waitlist record for this attendee
+            const waitlistRecord = waitlistRecords.find(
+              record => record.attendeeResponse.id === attendeeId
+            );
+            
+            // Then delete the waitlist record
+            if (waitlistRecord) {
+              await deleteWaitlistRecord({
+                trainingCenterId,
+                waitlistRecordId: waitlistRecord.id
+              });
+            }
+            
+            return { success: true, attendeeId };
+          } catch (error) {
+            console.error(`Error assigning attendee ${attendeeId} to course:`, error);
+            return { success: false, attendeeId, error };
+          }
+        });
+        
+        const results = await Promise.all(assignPromises);
+        const successCount = results.filter(r => r.success).length;
+        
+        if (successCount > 0) {
+          toast.success(`Successfully assigned ${successCount} attendees from waitlist`);
+        }
+        
+        const failureCount = results.length - successCount;
+        if (failureCount > 0) {
+          toast.error(`Failed to assign ${failureCount} attendees from waitlist`);
+        }
+      }
       
       toast.success("Course scheduled successfully");
-      onSuccess();
-      onOpenChange(false);
+      onSuccess(); // Trigger the success callback
+      onOpenChange(false); // Close the dialog
     } catch (error) {
       console.error("Error scheduling course:", error);
-      toast.error("Failed to schedule course. Please try again.");
+      toast.error("Failed to schedule course");
     } finally {
       setIsSubmitting(false);
     }
@@ -332,6 +425,55 @@ export function CourseSchedulingDialog({
                 </FormItem>
               )}
             />
+            
+            {/* Waitlist Attendees Section */}
+            {waitlistRecords.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium">Waitlist Attendees</h3>
+                  <span className="text-sm text-muted-foreground">
+                    {selectedWaitlistAttendees.length} of {waitlistRecords.length} selected
+                  </span>
+                </div>
+                <div className="border rounded-md p-4 space-y-2 max-h-[200px] overflow-y-auto">
+                  {isLoadingWaitlist ? (
+                    <div className="flex justify-center items-center py-4">
+                      <p>Loading waitlist records...</p>
+                    </div>
+                  ) : waitlistRecords.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2">No waitlist records found for this template.</p>
+                  ) : (
+                    waitlistRecords.map((record) => {
+                      const attendee = record.attendeeResponse;
+                      return (
+                        <div key={record.id} className="flex items-center space-x-2 py-1">
+                          <Checkbox
+                            id={`waitlist-${record.id}`}
+                            checked={selectedWaitlistAttendees.includes(attendee.id)}
+                            onCheckedChange={() => toggleWaitlistAttendee(attendee.id)}
+                          />
+                          <label
+                            htmlFor={`waitlist-${record.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                          >
+                            <div className="flex justify-between items-center">
+                              <span>{attendee.name} {attendee.surname}</span>
+                              <span className="text-xs text-muted-foreground">{attendee.rank}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {attendee.email} • {attendee.telephone}
+                            </div>
+                          </label>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Selected attendees will be automatically enrolled in the course and removed from the waitlist.
+                </p>
+              </div>
+            )}
             
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
