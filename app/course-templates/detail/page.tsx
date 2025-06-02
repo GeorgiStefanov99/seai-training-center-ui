@@ -9,13 +9,17 @@ import { Button } from "@/components/ui/button"
 import { CourseTemplate, ActiveCourse } from "@/types/course-template"
 import { getCourseTemplateById, getActiveCoursesForTemplate } from "@/services/courseTemplateService"
 import { useAuth } from "@/hooks/useAuth"
-import { Loader2, Edit, ArrowLeft, Calendar, Users, DollarSign, BookOpen, Trash2, UserPlus, MoreHorizontal } from "lucide-react"
+import { Loader2, Edit, ArrowLeft, Calendar, Users, DollarSign, BookOpen, Trash2, UserPlus, MoreHorizontal, ClipboardList } from "lucide-react"
 import { toast } from "sonner"
 import { deleteCourse } from "@/services/courseService"
+import { getWaitlistRecordsByTemplate, deleteWaitlistRecord } from "@/services/waitlistService"
+import { WaitlistRecord } from "@/types/course-template"
 import { CourseTemplateDialog } from "@/components/dialogs/course-template-dialog"
 import { CourseSchedulingDialog } from "@/components/dialogs/course-scheduling-dialog"
 import { CourseEditDialog } from "@/components/dialogs/course-edit-dialog"
 import { DeleteConfirmationDialog } from "@/components/dialogs/delete-confirmation-dialog"
+import { WaitlistAddDialog } from "@/components/dialogs/waitlist-add-dialog"
+import { WaitlistEditDialog } from "@/components/dialogs/waitlist-edit-dialog"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
@@ -102,6 +106,11 @@ export default function CourseTemplateDetailPage() {
   const [courseEditDialogOpen, setCourseEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState<ActiveCourse | null>(null)
+  const [waitlistRecords, setWaitlistRecords] = useState<WaitlistRecord[]>([])
+  const [isLoadingWaitlist, setIsLoadingWaitlist] = useState(false)
+  const [waitlistAddDialogOpen, setWaitlistAddDialogOpen] = useState(false)
+  const [waitlistEditDialogOpen, setWaitlistEditDialogOpen] = useState(false)
+  const [selectedWaitlistRecord, setSelectedWaitlistRecord] = useState<WaitlistRecord | null>(null)
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
@@ -232,18 +241,66 @@ export default function CourseTemplateDetailPage() {
       throw err // Re-throw to be caught by the confirmation dialog
     }
   }
+  
+  // Fetch waitlist records for the current template
+  const fetchWaitlistRecords = async () => {
+    if (!trainingCenterId || !templateId) return
+    
+    try {
+      setIsLoadingWaitlist(true)
+      const records = await getWaitlistRecordsByTemplate({
+        trainingCenterId,
+        courseTemplateId: templateId
+      })
+      setWaitlistRecords(records)
+    } catch (err) {
+      console.error('Error fetching waitlist records:', err)
+      toast.error("Failed to load waitlist records. Please try again.")
+    } finally {
+      setIsLoadingWaitlist(false)
+    }
+  }
+  
+  // Handle editing a waitlist record
+  const handleEditWaitlistRecord = (record: WaitlistRecord) => {
+    setSelectedWaitlistRecord(record)
+    setWaitlistEditDialogOpen(true)
+  }
+  
+  // Handle deleting a waitlist record
+  const handleDeleteWaitlistRecord = (record: WaitlistRecord) => {
+    if (!trainingCenterId) return
+    
+    if (confirm(`Are you sure you want to delete the waitlist record for ${record.attendeeResponse.name} ${record.attendeeResponse.surname}?`)) {
+      deleteWaitlistRecord({
+        trainingCenterId,
+        waitlistRecordId: record.id
+      })
+        .then(() => {
+          toast.success("Waitlist record deleted successfully")
+          fetchWaitlistRecords()
+        })
+        .catch(err => {
+          console.error('Error deleting waitlist record:', err)
+          toast.error("Failed to delete waitlist record. Please try again.")
+        })
+    }
+  }
+  
+  // Handle adding a new waitlist record
+  const handleAddWaitlistRecord = () => {
+    setWaitlistAddDialogOpen(true)
+  }
 
   // Format currency for display
   const formatCurrency = (price: number, currency: string) => {
-    const formatter = new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2
-    })
-    
-    return formatter.format(price)
+      currency: currency || 'USD',
+    }).format(price)
   }
+  
+
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -254,21 +311,24 @@ export default function CourseTemplateDetailPage() {
     }
   }
 
-  // Get status badge variant
+  // Get status badge variant for both course status and waitlist status
   const getStatusBadgeVariant = (status?: string) => {
-    if (!status) return 'outline'
+    if (!status) return "secondary"
     
-    switch (status) {
-      case 'SCHEDULED':
-        return 'secondary'
-      case 'IN_PROGRESS':
-        return 'default'
-      case 'COMPLETED':
-        return 'success'
-      case 'CANCELLED':
-        return 'destructive'
+    switch (status.toUpperCase()) {
+      case "SCHEDULED":
+      case "WAITING":
+        return "secondary"
+      case "IN_PROGRESS":
+        return "default"
+      case "COMPLETED":
+      case "CONFIRMED":
+        return "success"
+      case "CANCELLED":
+      case "DELETED":
+        return "destructive"
       default:
-        return 'outline'
+        return "outline"
     }
   }
 
@@ -345,9 +405,10 @@ export default function CourseTemplateDetailPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="courses">Active Courses</TabsTrigger>
+            <TabsTrigger value="waitlist" onClick={() => fetchWaitlistRecords()}>Waitlist</TabsTrigger>
           </TabsList>
           
           {/* Overview Tab */}
@@ -505,6 +566,97 @@ export default function CourseTemplateDetailPage() {
               </CardFooter>
             </Card>
           </TabsContent>
+          
+          {/* Waitlist Tab */}
+          <TabsContent value="waitlist">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">Waitlist Records</CardTitle>
+                <CardDescription>
+                  Manage waitlist records for this course template
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingWaitlist ? (
+                  <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : waitlistRecords.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="rounded-full bg-muted p-3">
+                      <ClipboardList className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-medium">No Waitlist Records</h3>
+                    <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+                      There are no waitlist records for this course template yet.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Rank</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {waitlistRecords.map((record) => (
+                          <TableRow key={record.id}>
+                            <TableCell>
+                              {record.attendeeResponse.name} {record.attendeeResponse.surname}
+                            </TableCell>
+                            <TableCell>{record.attendeeResponse.email}</TableCell>
+                            <TableCell>
+                              {record.attendeeResponse.rank.replace(/_/g, " ")}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getStatusBadgeVariant(record.status)}>
+                                {record.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEditWaitlistRecord(record)}
+                                  title="Edit Waitlist Record"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteWaitlistRecord(record)}
+                                  title="Delete Waitlist Record"
+                                  className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  className="w-full sm:w-auto" 
+                  onClick={() => handleAddWaitlistRecord()}
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add to Waitlist
+                </Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
       
@@ -544,6 +696,24 @@ export default function CourseTemplateDetailPage() {
         title="Delete Course"
         description={`Are you sure you want to delete the course "${selectedCourse?.name || ''}"? This action cannot be undone.`}
         onConfirm={confirmDeleteCourse}
+      />
+      
+      {/* Waitlist Add Dialog */}
+      {templateId && (
+        <WaitlistAddDialog
+          open={waitlistAddDialogOpen}
+          onOpenChange={setWaitlistAddDialogOpen}
+          courseTemplateId={templateId}
+          onSuccess={fetchWaitlistRecords}
+        />
+      )}
+      
+      {/* Waitlist Edit Dialog */}
+      <WaitlistEditDialog
+        open={waitlistEditDialogOpen}
+        onOpenChange={setWaitlistEditDialogOpen}
+        waitlistRecord={selectedWaitlistRecord}
+        onSuccess={fetchWaitlistRecords}
       />
     </PageLayout>
   )
