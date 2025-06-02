@@ -11,7 +11,7 @@ import { Attendee } from "@/types/attendee"
 import { getAttendeeById } from "@/services/attendeeService"
 import { RANK_LABELS } from "@/lib/rank-labels"
 import { useAuth } from "@/hooks/useAuth"
-import { Loader2, Mail, Phone, Award, Edit, MessageSquare, Plus, RefreshCw } from "lucide-react"
+import { Loader2, Mail, Phone, Award, Edit, MessageSquare, Plus, RefreshCw, Calendar, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { AttendeeDialog } from "@/components/dialogs/attendee-dialog"
 import { RemarkDialog } from "@/components/dialogs/remark-dialog"
@@ -19,6 +19,18 @@ import { useRouter } from "next/navigation"
 import { Remark } from "@/types/remark"
 import { getAttendeeRemarks } from "@/services/remarkService"
 import { format } from "date-fns"
+import { Course } from "@/types/course"
+import { getAttendeeEnrolledCourses, removeAttendeeFromCourse } from "@/services/attendeeCourseService"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function AttendeeDetailPage() {
   const searchParams = useSearchParams()
@@ -35,6 +47,12 @@ export default function AttendeeDetailPage() {
   const [createRemarkDialogOpen, setCreateRemarkDialogOpen] = useState(false)
   const [editRemarkDialogOpen, setEditRemarkDialogOpen] = useState(false)
   const [selectedRemark, setSelectedRemark] = useState<Remark | undefined>(undefined)
+  
+  // Courses state
+  const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([])
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false)
+  const [removeCourseDialogOpen, setRemoveCourseDialogOpen] = useState(false)
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
@@ -59,6 +77,54 @@ export default function AttendeeDetailPage() {
       toast.error('Failed to load remarks. Please try again.')
     } finally {
       setIsLoadingRemarks(false)
+    }
+  }
+
+  // Function to fetch enrolled courses for the attendee
+  const fetchEnrolledCourses = async () => {
+    if (!trainingCenterId || !attendeeId) {
+      return
+    }
+    
+    setIsLoadingCourses(true)
+    try {
+      const data = await getAttendeeEnrolledCourses({ trainingCenterId, attendeeId })
+      setEnrolledCourses(data)
+    } catch (err) {
+      console.error('Error fetching enrolled courses:', err)
+      toast.error('Failed to load enrolled courses. Please try again.')
+    } finally {
+      setIsLoadingCourses(false)
+    }
+  }
+
+  // Handle removing attendee from a course
+  const handleRemoveFromCourse = (course: Course) => {
+    setSelectedCourse(course)
+    setRemoveCourseDialogOpen(true)
+  }
+
+  // Confirm removal of attendee from course
+  const confirmRemoveFromCourse = async () => {
+    if (!trainingCenterId || !attendeeId || !selectedCourse) {
+      return
+    }
+
+    try {
+      await removeAttendeeFromCourse({
+        trainingCenterId,
+        attendeeId,
+        courseId: selectedCourse.id
+      })
+      
+      toast.success(`Attendee removed from ${selectedCourse.name}`)
+      fetchEnrolledCourses() // Refresh the courses list
+    } catch (err) {
+      console.error('Error removing attendee from course:', err)
+      toast.error('Failed to remove attendee from course. Please try again.')
+    } finally {
+      setRemoveCourseDialogOpen(false)
+      setSelectedCourse(null)
     }
   }
 
@@ -87,8 +153,11 @@ export default function AttendeeDetailPage() {
         setAttendee(data)
         setError(null)
         
-        // After fetching attendee, fetch their remarks
-        await fetchRemarks()
+        // After fetching attendee, fetch their remarks and courses
+        await Promise.all([
+          fetchRemarks(),
+          fetchEnrolledCourses()
+        ])
       } catch (err) {
         console.error('DEBUG - Attendee Detail - Error fetching details:', err)
         setError('Failed to load attendee details. Please try again later.')
@@ -267,11 +336,11 @@ export default function AttendeeDetailPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-primary/5 p-4 rounded-lg">
                     <h3 className="text-sm font-medium text-muted-foreground">Courses Enrolled</h3>
-                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-2xl font-bold">{enrolledCourses?.length || 0}</p>
                   </div>
                   <div className="bg-primary/5 p-4 rounded-lg">
                     <h3 className="text-sm font-medium text-muted-foreground">Courses Completed</h3>
-                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-2xl font-bold">{enrolledCourses?.filter(course => course.status === 'COMPLETED').length || 0}</p>
                   </div>
                   <div className="bg-primary/5 p-4 rounded-lg">
                     <h3 className="text-sm font-medium text-muted-foreground">Quiz Average Score</h3>
@@ -354,20 +423,91 @@ export default function AttendeeDetailPage() {
           {/* Courses Tab */}
           <TabsContent value="courses" className="mt-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Enrolled Courses</CardTitle>
-                <CardDescription>Courses the attendee is currently enrolled in or has completed</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Enrolled Courses</CardTitle>
+                  <CardDescription>Courses the attendee is currently enrolled in or has completed</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchEnrolledCourses} disabled={isLoadingCourses}>
+                  {isLoadingCourses ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                  )}
+                  {isLoadingCourses ? "Loading..." : "Refresh"}
+                </Button>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="rounded-full bg-muted p-3">
-                    <Award className="h-6 w-6 text-muted-foreground" />
+                {isLoadingCourses ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
-                  <h3 className="mt-4 text-lg font-medium">No Courses Yet</h3>
-                  <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-                    This attendee is not enrolled in any courses yet. Courses will appear here once they are assigned.
-                  </p>
-                </div>
+                ) : enrolledCourses.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="rounded-full bg-muted p-3">
+                      <Award className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-medium">No Courses Yet</h3>
+                    <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+                      This attendee is not enrolled in any courses yet. Courses will appear here once they are assigned.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {enrolledCourses.map((course) => (
+                      <Card key={course.id} className="overflow-hidden">
+                        <CardHeader className="bg-muted/50 py-3 px-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-base">{course.name}</CardTitle>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleRemoveFromCourse(course)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="py-3 px-4">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="font-medium flex items-center">
+                                <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                                Start
+                              </p>
+                              <p className="text-muted-foreground">
+                                {course.startDate ? format(new Date(course.startDate), 'MMM d, yyyy') : 'Not scheduled'}
+                              </p>
+                              {course.startTime && (
+                                <p className="text-muted-foreground text-xs mt-1">
+                                  at {course.startTime}
+                                </p>
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium flex items-center">
+                                <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                                End
+                              </p>
+                              <p className="text-muted-foreground">
+                                {course.endDate ? format(new Date(course.endDate), 'MMM d, yyyy') : 'Not scheduled'}
+                              </p>
+                              {course.endTime && (
+                                <p className="text-muted-foreground text-xs mt-1">
+                                  at {course.endTime}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -426,6 +566,25 @@ export default function AttendeeDetailPage() {
           onSuccess={handleRemarkSuccess}
         />
       )}
+      
+      {/* Remove Course Confirmation Dialog */}
+      <AlertDialog open={removeCourseDialogOpen} onOpenChange={setRemoveCourseDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove from Course</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this attendee from the course "{selectedCourse?.name}"?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemoveFromCourse} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout>
   )
 }
