@@ -11,7 +11,7 @@ import { Attendee } from "@/types/attendee"
 import { getAttendeeById } from "@/services/attendeeService"
 import { RANK_LABELS } from "@/lib/rank-labels"
 import { useAuth } from "@/hooks/useAuth"
-import { Loader2, Mail, Phone, Award, Edit, MessageSquare, Plus, RefreshCw, Calendar, Trash2 } from "lucide-react"
+import { Loader2, Mail, Phone, Award, Edit, MessageSquare, Plus, RefreshCw, Calendar, Trash2, ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 import { AttendeeDialog } from "@/components/dialogs/attendee-dialog"
 import { RemarkDialog } from "@/components/dialogs/remark-dialog"
@@ -244,6 +244,17 @@ export default function AttendeeDetailPage() {
 
   return (
     <PageLayout title={`${attendee.name} ${attendee.surname}`}>
+      <div className="mb-6">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => router.push('/attendees')}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Attendees
+        </Button>
+      </div>
       <div className="space-y-6">
         {/* Profile Header */}
         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">

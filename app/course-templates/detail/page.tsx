@@ -20,7 +20,6 @@ import { CourseTemplateDialog } from "@/components/dialogs/course-template-dialo
 import { CourseSchedulingDialog } from "@/components/dialogs/course-scheduling-dialog"
 import { CourseEditDialog } from "@/components/dialogs/course-edit-dialog"
 import { DeleteConfirmationDialog } from "@/components/dialogs/delete-confirmation-dialog"
-import { WaitlistRecordDialog } from "@/components/dialogs/waitlist-record-dialog"
 import { WaitlistEditDialog } from "@/components/dialogs/waitlist-edit-dialog"
 import { CourseAttendeesManagementDialog } from "@/components/dialogs/course-attendees-management-dialog"
 import { useRouter } from "next/navigation"
@@ -966,15 +965,15 @@ export default function CourseTemplateDetailPage() {
         onConfirm={confirmDeleteCourse}
       />
       
-      {/* Waitlist Record Dialog */}
-      {templateId && (
-        <WaitlistRecordDialog
-          open={waitlistRecordDialogOpen}
-          onOpenChange={setWaitlistRecordDialogOpen}
-          mode="create"
-          courseTemplateId={templateId || ''}
-          onSuccess={fetchWaitlistRecords}
-        />
+      {/* Waitlist Record Dialog - Temporarily disabled until component is recreated */}
+      {templateId && waitlistRecordDialogOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h3 className="text-lg font-medium mb-4">Create Waitlist Record</h3>
+            <p className="mb-4">This functionality is temporarily unavailable.</p>
+            <Button onClick={() => setWaitlistRecordDialogOpen(false)}>Close</Button>
+          </div>
+        </div>
       )}
       
       {/* Waitlist Edit Dialog */}

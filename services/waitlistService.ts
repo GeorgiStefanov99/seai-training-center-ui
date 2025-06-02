@@ -47,6 +47,7 @@ export interface WaitlistApiParams {
   waitlistRecordId?: string;
   courseTemplateId?: string;
   attendeeId?: string;
+  timestamp?: number; // For cache busting
 }
 
 // Interface for new attendee request
@@ -70,14 +71,18 @@ export interface CreateWaitlistWithNewAttendeeRequest {
 /**
  * Get all waitlist records for a training center
  */
-export async function getWaitlistRecords({ trainingCenterId }: WaitlistApiParams): Promise<WaitlistRecord[]> {
+export async function getWaitlistRecords({ trainingCenterId, timestamp }: WaitlistApiParams): Promise<WaitlistRecord[]> {
   try {
     const token = getAuthToken();
     const headers = getAuthHeaders(token);
-    const response = await axios.get<GetWaitlistRecordsResponse>(
-      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/waitlist-records`,
-      { headers }
-    );
+    // Add timestamp as query parameter to prevent caching
+    const url = `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/waitlist-records`;
+    const params = timestamp ? { _t: timestamp } : {};
+    
+    const response = await axios.get<GetWaitlistRecordsResponse>(url, { 
+      headers,
+      params
+    });
     return response.data;
   } catch (error) {
     console.error("Error fetching waitlist records:", error);

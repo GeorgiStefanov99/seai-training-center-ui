@@ -23,14 +23,17 @@ import {
   Edit, 
   Trash2, 
   Eye, 
-  MoreHorizontal 
+  MoreHorizontal,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { getWaitlistRecords, deleteWaitlistRecord } from "@/services/waitlistService"
 import { WaitlistRecord } from "@/types/course-template"
 import { toast } from "sonner"
 import { DeleteConfirmationDialog } from "@/components/dialogs/delete-confirmation-dialog"
-import { WaitlistRecordDialog } from "@/components/dialogs/waitlist-record-dialog"
+import { WaitlistEditDialog } from "@/components/dialogs/waitlist-edit-dialog"
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +48,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Remark } from "@/types/remark"
+import { getAttendeeRemarks, createRemark, updateRemark, deleteRemark } from "@/services/remarkService"
+import { RemarkDialog, DeleteRemarkDialog } from "@/components/dialogs/remark-dialog"
+import { format } from "date-fns"
 
 export default function WaitlistPage() {
   const router = useRouter()
@@ -64,6 +71,16 @@ export default function WaitlistPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedRecord, setSelectedRecord] = useState<WaitlistRecord | null>(null)
   
+  // Remark states
+  const [waitlistRemarks, setWaitlistRemarks] = useState<Record<string, Remark[]>>({}) 
+  const [isLoadingRemarks, setIsLoadingRemarks] = useState(false)
+  const [createRemarkDialogOpen, setCreateRemarkDialogOpen] = useState(false)
+  const [editRemarkDialogOpen, setEditRemarkDialogOpen] = useState(false)
+  const [deleteRemarkDialogOpen, setDeleteRemarkDialogOpen] = useState(false)
+  const [selectedRemark, setSelectedRemark] = useState<Remark | null>(null)
+  const [selectedAttendeeForRemark, setSelectedAttendeeForRemark] = useState<{ id: string; name: string } | null>(null)
+  const [expandedRemarkAttendeeId, setExpandedRemarkAttendeeId] = useState<string | null>(null)
+  
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
   
@@ -77,9 +94,28 @@ export default function WaitlistPage() {
     
     try {
       setIsLoading(true)
-      const data = await getWaitlistRecords({ trainingCenterId })
+      // Force cache invalidation by adding a timestamp parameter
+      const timestamp = new Date().getTime()
+      console.log('Fetching waitlist records with timestamp:', timestamp)
+      
+      // Clear existing records before fetching to avoid stale data
+      setWaitlistRecords([])
+      
+      const data = await getWaitlistRecords({ trainingCenterId, timestamp })
+      console.log('Fetched waitlist records:', data)
+      
+      // Log detailed information about each record
+      data.forEach(record => {
+        console.log(`Record ID: ${record.id}, Status: ${record.status}, Template ID: ${record.templateId}`)
+      })
+      
       setWaitlistRecords(data)
       setError(null)
+      
+      // After fetching waitlist records, fetch remarks for each attendee
+      if (data.length > 0) {
+        await fetchAllWaitlistRemarks(data)
+      }
     } catch (err) {
       console.error("Error fetching waitlist records:", err)
       setError("Failed to load waitlist records. Please try again.")
@@ -129,24 +165,120 @@ export default function WaitlistPage() {
       })
       
       toast.success("Waitlist record deleted successfully")
-      fetchWaitlistRecords()
-    } catch (err) {
-      console.error("Error deleting waitlist record:", err)
+      // First refresh the data
+      await fetchWaitlistRecords()
+      // Then close the dialog with a slight delay to ensure state updates properly
+      setTimeout(() => {
+        setDeleteDialogOpen(false)
+        setSelectedRecord(null)
+      }, 100)
+    } catch (error) {
+      console.error("Error deleting waitlist record:", error)
       toast.error("Failed to delete waitlist record. Please try again.")
-      throw err
     }
   }
   
   // Handle record edit
   const handleEditRecord = (record: WaitlistRecord) => {
     setSelectedRecord(record)
-    setEditDialogOpen(true)
+    // Use setTimeout to ensure state is updated before opening dialog
+    setTimeout(() => {
+      setEditDialogOpen(true)
+    }, 10)
   }
   
   // Handle view record details
   const handleViewRecord = (record: WaitlistRecord) => {
-    // Navigate to course template detail page
     router.push(`/course-templates/detail?id=${record.templateId}`)
+  }
+  
+  // Function to fetch remarks for a specific attendee
+  const fetchAttendeeRemarks = async (attendeeId: string) => {
+    if (!trainingCenterId) return []
+    
+    try {
+      return await getAttendeeRemarks({ trainingCenterId, attendeeId })
+    } catch (error) {
+      console.error(`Error fetching remarks for attendee ${attendeeId}:`, error)
+      return []
+    }
+  }
+  
+  // Function to fetch all remarks for all waitlist record attendees
+  const fetchAllWaitlistRemarks = async (waitlistRecordsList: WaitlistRecord[]) => {
+    if (!trainingCenterId || waitlistRecordsList.length === 0) return
+    
+    setIsLoadingRemarks(true)
+    const remarksMap: Record<string, Remark[]> = {}
+    
+    try {
+      // Create an array of promises for fetching remarks for each attendee
+      const remarkPromises = waitlistRecordsList.map(async (record) => {
+        try {
+          const remarks = await fetchAttendeeRemarks(record.attendeeResponse.id)
+          remarksMap[record.attendeeResponse.id] = remarks
+        } catch (err) {
+          console.error(`Error fetching remarks for attendee ${record.attendeeResponse.id}:`, err)
+        }
+      })
+      
+      await Promise.all(remarkPromises)
+      setWaitlistRemarks(remarksMap)
+    } catch (error) {
+      console.error('Error fetching all waitlist remarks:', error)
+    } finally {
+      setIsLoadingRemarks(false)
+    }
+  }
+  
+  // Handle opening the create remark dialog or toggling remarks visibility
+  const handleCreateRemark = (record: WaitlistRecord) => {
+    const attendeeId = record.attendeeResponse.id
+    
+    // Toggle remarks visibility
+    if (expandedRemarkAttendeeId === attendeeId) {
+      setExpandedRemarkAttendeeId(null) // Hide remarks if already expanded
+    } else {
+      setExpandedRemarkAttendeeId(attendeeId) // Show remarks for this attendee
+    }
+    
+    // Set selected attendee for potential remark creation
+    setSelectedAttendeeForRemark({
+      id: attendeeId,
+      name: `${record.attendeeResponse.name} ${record.attendeeResponse.surname}`
+    })
+  }
+  
+  // Handle adding a new remark
+  const handleAddRemark = () => {
+    if (selectedAttendeeForRemark) {
+      setCreateRemarkDialogOpen(true)
+    }
+  }
+  
+  // Handle editing a remark
+  const handleEditRemark = (remark: Remark) => {
+    setSelectedRemark(remark)
+    setTimeout(() => {
+      setEditRemarkDialogOpen(true)
+    }, 10)
+  }
+  
+  // Delete functionality has been removed
+  // Placeholder functions to maintain code structure
+  const handleDeleteRemark = () => {}
+  const confirmDeleteRemark = () => {}
+  
+  // Handle remark success (create/edit)
+  const handleRemarkSuccess = async () => {
+    if (!selectedAttendeeForRemark) return
+    
+    // Refresh remarks for this attendee
+    const updatedRemarks = await fetchAttendeeRemarks(selectedAttendeeForRemark.id)
+    setWaitlistRemarks(prev => ({
+      ...prev,
+      [selectedAttendeeForRemark.id]: updatedRemarks
+    }))
   }
   
   // Format status badge
@@ -241,47 +373,114 @@ export default function WaitlistPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredRecords.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell>
-                          {record.attendeeResponse.name} {record.attendeeResponse.surname}
-                        </TableCell>
-                        <TableCell>{record.attendeeResponse.email}</TableCell>
-                        <TableCell>
-                          {record.attendeeResponse.rank.replace(/_/g, " ")}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusBadgeVariant(record.status)}>
-                            {record.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Open menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewRecord(record)}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Course
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEditRecord(record)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit Record
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleDeleteRecord(record)}
-                                className="text-destructive focus:text-destructive"
+                      <React.Fragment key={record.id}>
+                        <TableRow>
+                          <TableCell>
+                            {record.attendeeResponse.name} {record.attendeeResponse.surname}
+                          </TableCell>
+                          <TableCell>{record.attendeeResponse.email}</TableCell>
+                          <TableCell>
+                            {record.attendeeResponse.rank.replace(/_/g, " ")}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusBadgeVariant(record.status)}>
+                              {record.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end space-x-2">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleCreateRemark(record)}
+                                title="View/Add Remarks"
                               >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Record
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
+                                <MessageSquare className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleViewRecord(record)}
+                                title="View Course"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleEditRecord(record)}
+                                title="Edit Record"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleDeleteRecord(record)}
+                                className="text-destructive hover:text-destructive"
+                                title="Delete Record"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        
+                        {/* Remarks section - only shown when expanded */}
+                        {expandedRemarkAttendeeId === record.attendeeResponse.id && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="bg-muted/30 p-4">
+                              <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                  <h4 className="text-sm font-medium">Remarks for {record.attendeeResponse.name} {record.attendeeResponse.surname}</h4>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    onClick={handleAddRemark}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <Plus className="h-3 w-3" /> Add Remark
+                                  </Button>
+                                </div>
+                                
+                                {isLoadingRemarks ? (
+                                  <div className="flex justify-center py-4">
+                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                  </div>
+                                ) : waitlistRemarks[record.attendeeResponse.id]?.length > 0 ? (
+                                  <div className="space-y-3">
+                                    {waitlistRemarks[record.attendeeResponse.id].map((remark) => (
+                                      <Card key={remark.id} className="overflow-hidden">
+                                        <CardHeader className="py-2 px-4 bg-muted/50 flex flex-row justify-between items-center">
+                                          <div>
+                                            <CardTitle className="text-sm font-medium">Remark</CardTitle>
+                                            <CardDescription className="text-xs">
+                                              Created: {remark.createdAt ? format(new Date(remark.createdAt), 'MMM d, yyyy HH:mm') : 'Unknown date'}
+                                              {remark.lastUpdatedAt && remark.lastUpdatedAt !== remark.createdAt && (
+                                                <span className="block">Updated: {format(new Date(remark.lastUpdatedAt), 'MMM d, yyyy HH:mm')}</span>
+                                              )}
+                                            </CardDescription>
+                                          </div>
+                                          <div className="flex gap-1">
+                                            <Button variant="ghost" size="icon" onClick={() => handleEditRemark(remark)}>
+                                              <Edit className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                        </CardHeader>
+                                        <CardContent className="py-2 px-4">
+                                          <p className="text-sm">{remark.remarkText}</p>
+                                        </CardContent>
+                                      </Card>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">No remarks yet. Click 'Add Remark' to create one.</p>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
                     ))}
                   </TableBody>
                 </Table>
@@ -299,24 +498,51 @@ export default function WaitlistPage() {
           onConfirm={confirmDeleteRecord}
         />
         
-        {/* Create Waitlist Record Dialog */}
-        <WaitlistRecordDialog
-          open={createDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-          mode="create"
-          onSuccess={fetchWaitlistRecords}
-        />
+        {/* Create Waitlist Record Dialog - Temporarily disabled until component is recreated */}
+        {createDialogOpen && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg">
+              <h3 className="text-lg font-medium mb-4">Create Waitlist Record</h3>
+              <p className="mb-4">This functionality is temporarily unavailable.</p>
+              <Button onClick={() => setCreateDialogOpen(false)}>Close</Button>
+            </div>
+          </div>
+        )}
         
         {/* Edit Waitlist Record Dialog */}
         {selectedRecord && (
-          <WaitlistRecordDialog
+          <WaitlistEditDialog
             open={editDialogOpen}
             onOpenChange={setEditDialogOpen}
-            mode="edit"
-            record={selectedRecord}
+            waitlistRecord={selectedRecord}
             onSuccess={fetchWaitlistRecords}
           />
         )}
+        
+        {/* Create Remark Dialog */}
+        {selectedAttendeeForRemark && (
+          <RemarkDialog
+            open={createRemarkDialogOpen}
+            onOpenChange={setCreateRemarkDialogOpen}
+            mode="create"
+            attendeeId={selectedAttendeeForRemark.id}
+            onSuccess={handleRemarkSuccess}
+          />
+        )}
+        
+        {/* Edit Remark Dialog */}
+        {selectedRemark && selectedAttendeeForRemark && (
+          <RemarkDialog
+            open={editRemarkDialogOpen}
+            onOpenChange={setEditRemarkDialogOpen}
+            mode="edit"
+            attendeeId={selectedAttendeeForRemark.id}
+            remark={selectedRemark}
+            onSuccess={handleRemarkSuccess}
+          />
+        )}
+        
+        {/* Delete Remark functionality has been removed */}
       </div>
     </PageLayout>
   )

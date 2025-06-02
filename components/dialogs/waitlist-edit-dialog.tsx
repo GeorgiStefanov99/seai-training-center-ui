@@ -67,8 +67,11 @@ export function WaitlistEditDialog({
   const handleDialogChange = (newOpenState: boolean) => {
     // If dialog is closing and we're not in the middle of submitting
     if (!newOpenState && !isSubmitting) {
-      // Call the parent's onOpenChange function
-      onOpenChange(false);
+      // Call the parent's onOpenChange function with a slight delay
+      // to ensure state is properly managed
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 100);
     }
   };
 
@@ -100,11 +103,12 @@ export function WaitlistEditDialog({
       };
 
       // Update the waitlist record status
-      await updateWaitlistRecord({
+      const updatedRecord = await updateWaitlistRecord({
         trainingCenterId,
         waitlistRecordId: waitlistRecord.id
       }, updatePayload);
       
+      console.log('API response after update:', updatedRecord);
       toast.success("Waitlist record updated successfully");
       // First call onSuccess to refresh data
       onSuccess();
