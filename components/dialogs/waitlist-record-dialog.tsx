@@ -78,6 +78,7 @@ interface WaitlistRecordDialogProps {
   onOpenChange: (open: boolean) => void;
   mode: "create" | "edit";
   record?: WaitlistRecord;
+  courseTemplateId?: string;
   onSuccess: () => void;
 }
 
@@ -95,6 +96,7 @@ export function WaitlistRecordDialog({
   onOpenChange,
   mode,
   record,
+  courseTemplateId,
   onSuccess
 }: WaitlistRecordDialogProps) {
   const { user } = useAuth();
@@ -118,7 +120,7 @@ export function WaitlistRecordDialog({
     } : {
       attendeeType: "existing",
       attendeeId: "",
-      courseTemplateId: "",
+      courseTemplateId: courseTemplateId || "",
       status: "WAITING",
     },
   });
@@ -423,7 +425,7 @@ export function WaitlistRecordDialog({
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
-                      disabled={mode === "edit" || isSubmitting}
+                      disabled={mode === "edit" || isSubmitting || !!courseTemplateId}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -439,7 +441,7 @@ export function WaitlistRecordDialog({
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      The course template to waitlist the attendee for
+                      {courseTemplateId ? "This attendee will be added to the selected course template" : "The course template to waitlist the attendee for"}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

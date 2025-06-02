@@ -18,7 +18,7 @@ import { CourseTemplateDialog } from "@/components/dialogs/course-template-dialo
 import { CourseSchedulingDialog } from "@/components/dialogs/course-scheduling-dialog"
 import { CourseEditDialog } from "@/components/dialogs/course-edit-dialog"
 import { DeleteConfirmationDialog } from "@/components/dialogs/delete-confirmation-dialog"
-import { WaitlistAddDialog } from "@/components/dialogs/waitlist-add-dialog"
+import { WaitlistRecordDialog } from "@/components/dialogs/waitlist-record-dialog"
 import { WaitlistEditDialog } from "@/components/dialogs/waitlist-edit-dialog"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
@@ -108,7 +108,7 @@ export default function CourseTemplateDetailPage() {
   const [selectedCourse, setSelectedCourse] = useState<ActiveCourse | null>(null)
   const [waitlistRecords, setWaitlistRecords] = useState<WaitlistRecord[]>([])
   const [isLoadingWaitlist, setIsLoadingWaitlist] = useState(false)
-  const [waitlistAddDialogOpen, setWaitlistAddDialogOpen] = useState(false)
+  const [waitlistRecordDialogOpen, setWaitlistRecordDialogOpen] = useState(false)
   const [waitlistEditDialogOpen, setWaitlistEditDialogOpen] = useState(false)
   const [selectedWaitlistRecord, setSelectedWaitlistRecord] = useState<WaitlistRecord | null>(null)
   
@@ -289,7 +289,7 @@ export default function CourseTemplateDetailPage() {
   
   // Handle adding a new waitlist record
   const handleAddWaitlistRecord = () => {
-    setWaitlistAddDialogOpen(true)
+    setWaitlistRecordDialogOpen(true)
   }
 
   // Format currency for display
@@ -698,11 +698,12 @@ export default function CourseTemplateDetailPage() {
         onConfirm={confirmDeleteCourse}
       />
       
-      {/* Waitlist Add Dialog */}
+      {/* Waitlist Record Dialog */}
       {templateId && (
-        <WaitlistAddDialog
-          open={waitlistAddDialogOpen}
-          onOpenChange={setWaitlistAddDialogOpen}
+        <WaitlistRecordDialog
+          open={waitlistRecordDialogOpen}
+          onOpenChange={setWaitlistRecordDialogOpen}
+          mode="create"
           courseTemplateId={templateId}
           onSuccess={fetchWaitlistRecords}
         />
