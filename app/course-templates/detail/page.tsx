@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { CourseTemplate, ActiveCourse } from "@/types/course-template"
 import { getCourseTemplateById, getActiveCoursesForTemplate } from "@/services/courseTemplateService"
 import { useAuth } from "@/hooks/useAuth"
-import { Loader2, Edit, ArrowLeft, Calendar, Users, DollarSign, BookOpen, Trash2, UserPlus, MoreHorizontal, ClipboardList } from "lucide-react"
+import { Loader2, Edit, ArrowLeft, Calendar, CalendarPlus, Users, DollarSign, BookOpen, Trash2, UserPlus, MoreHorizontal, ClipboardList } from "lucide-react"
 import { toast } from "sonner"
 import { deleteCourse } from "@/services/courseService"
 import { getWaitlistRecordsByTemplate, deleteWaitlistRecord } from "@/services/waitlistService"
@@ -20,6 +20,7 @@ import { CourseEditDialog } from "@/components/dialogs/course-edit-dialog"
 import { DeleteConfirmationDialog } from "@/components/dialogs/delete-confirmation-dialog"
 import { WaitlistRecordDialog } from "@/components/dialogs/waitlist-record-dialog"
 import { WaitlistEditDialog } from "@/components/dialogs/waitlist-edit-dialog"
+import { CourseAttendeesManagementDialog } from "@/components/dialogs/course-attendees-management-dialog"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
@@ -68,6 +69,8 @@ const MOCK_ACTIVE_COURSES: Record<string, ActiveCourse[]> = {
       startDate: "2025-06-10T09:00:00Z",
       endDate: "2025-06-14T17:00:00Z",
       status: "SCHEDULED",
+      maxSeats: 20,
+      availableSeats: 8,
       enrolledAttendees: 12
     },
     {
@@ -77,6 +80,8 @@ const MOCK_ACTIVE_COURSES: Record<string, ActiveCourse[]> = {
       startDate: "2025-07-15T09:00:00Z",
       endDate: "2025-07-19T17:00:00Z",
       status: "SCHEDULED",
+      maxSeats: 20,
+      availableSeats: 15,
       enrolledAttendees: 5
     }
   ],
@@ -88,6 +93,8 @@ const MOCK_ACTIVE_COURSES: Record<string, ActiveCourse[]> = {
       startDate: "2025-08-05T09:00:00Z",
       endDate: "2025-08-12T17:00:00Z",
       status: "SCHEDULED",
+      maxSeats: 15,
+      availableSeats: 7,
       enrolledAttendees: 8
     }
   ]
@@ -101,6 +108,7 @@ export default function CourseTemplateDetailPage() {
   const [activeCourses, setActiveCourses] = useState<ActiveCourse[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState("overview")
   const [templateEditDialogOpen, setTemplateEditDialogOpen] = useState(false)
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
   const [courseEditDialogOpen, setCourseEditDialogOpen] = useState(false)
@@ -110,6 +118,8 @@ export default function CourseTemplateDetailPage() {
   const [isLoadingWaitlist, setIsLoadingWaitlist] = useState(false)
   const [waitlistRecordDialogOpen, setWaitlistRecordDialogOpen] = useState(false)
   const [waitlistEditDialogOpen, setWaitlistEditDialogOpen] = useState(false)
+  const [courseAttendeesDialogOpen, setCourseAttendeesDialogOpen] = useState(false)
+  const [selectedCourseForAttendees, setSelectedCourseForAttendees] = useState<ActiveCourse | null>(null)
   const [selectedWaitlistRecord, setSelectedWaitlistRecord] = useState<WaitlistRecord | null>(null)
   
   // Get training center ID from the authenticated user
@@ -195,21 +205,28 @@ export default function CourseTemplateDetailPage() {
   
   // Refresh courses after edit or delete
   const refreshCourses = async () => {
-    if (!trainingCenterId || !templateId) return
-    
-    try {
-      setIsLoading(true)
-      const coursesData = await getActiveCoursesForTemplate({
-        trainingCenterId,
-        courseTemplateId: templateId
-      })
-      setActiveCourses(coursesData)
-    } catch (err) {
-      console.error('Error refreshing courses:', err)
-    } finally {
-      setIsLoading(false)
+    if (templateId) {
+      // Fetch active courses for the template
+      try {
+        const data = await getActiveCoursesForTemplate({
+          trainingCenterId,
+          courseTemplateId: templateId
+        });
+        setActiveCourses(data);
+      } catch (error) {
+        console.error("Error fetching active courses:", error);
+        // Fallback to mock data if API fails
+        setActiveCourses(MOCK_ACTIVE_COURSES[templateId] || []);
+      }
     }
-  }
+  };
+  
+  // Refresh active courses after attendee operations
+  const refreshActiveCourses = async () => {
+    await refreshCourses();
+    // Set active tab to "active-courses"
+    setActiveTab("active-courses");
+  };
   
   // Handle course edit
   const handleEditCourse = (course: ActiveCourse) => {
@@ -290,6 +307,12 @@ export default function CourseTemplateDetailPage() {
   // Handle adding a new waitlist record
   const handleAddWaitlistRecord = () => {
     setWaitlistRecordDialogOpen(true)
+  }
+  
+  // Handle managing course attendees
+  const handleManageCourseAttendees = (course: ActiveCourse) => {
+    setSelectedCourseForAttendees(course)
+    setCourseAttendeesDialogOpen(true)
   }
 
   // Format currency for display
@@ -397,17 +420,23 @@ export default function CourseTemplateDetailPage() {
             </p>
           </div>
           
-          <Button onClick={() => setTemplateEditDialogOpen(true)} className="shrink-0">
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Template
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button onClick={() => setScheduleDialogOpen(true)} className="shrink-0">
+              <CalendarPlus className="mr-2 h-4 w-4" />
+              Schedule New Course
+            </Button>
+            <Button onClick={() => setTemplateEditDialogOpen(true)} className="shrink-0">
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Template
+            </Button>
+          </div>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="courses">Active Courses</TabsTrigger>
+            <TabsTrigger value="active-courses">Active Courses</TabsTrigger>
             <TabsTrigger value="waitlist" onClick={() => fetchWaitlistRecords()}>Waitlist</TabsTrigger>
           </TabsList>
           
@@ -471,7 +500,7 @@ export default function CourseTemplateDetailPage() {
           </TabsContent>
           
           {/* Active Courses Tab */}
-          <TabsContent value="courses" className="mt-6">
+          <TabsContent value="active-courses" className="mt-6">
             <Card>
               <CardHeader>
                 <CardTitle>Active Courses</CardTitle>
@@ -504,7 +533,7 @@ export default function CourseTemplateDetailPage() {
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Users className="h-3 w-3" />
-                              <span>{course.enrolledAttendees} / {template.maxSeats}</span>
+                              <span>{course.availableSeats} / {course.maxSeats}</span>
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
@@ -520,11 +549,8 @@ export default function CourseTemplateDetailPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => {
-                                  // Assign seafarer functionality will be implemented later
-                                  toast.info("Assign seafarer functionality coming soon");
-                                }}
-                                title="Assign Seafarer"
+                                onClick={() => handleManageCourseAttendees(course)}
+                                title="Manage Course Attendees"
                               >
                                 <UserPlus className="h-4 w-4" />
                               </Button>
@@ -716,6 +742,17 @@ export default function CourseTemplateDetailPage() {
         waitlistRecord={selectedWaitlistRecord}
         onSuccess={fetchWaitlistRecords}
       />
+      
+      {/* Course Attendees Management Dialog */}
+      {selectedCourseForAttendees && (
+        <CourseAttendeesManagementDialog
+          open={courseAttendeesDialogOpen}
+          onOpenChange={setCourseAttendeesDialogOpen}
+          courseId={selectedCourseForAttendees.id}
+          courseName={selectedCourseForAttendees.name}
+          refreshData={refreshActiveCourses}
+        />
+      )}
     </PageLayout>
   )
 }

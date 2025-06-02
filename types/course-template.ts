@@ -40,8 +40,15 @@ export interface ActiveCourse {
   name: string;
   startDate: string;
   endDate: string;
+  startTime?: string;
+  endTime?: string;
+  price?: number;
+  currency?: Currency;
   status: "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-  enrolledAttendees: number;
+  maxSeats: number;
+  availableSeats: number;
+  enrolledAttendees?: number;
+  description?: string;
 }
 
 // Response type for the GET active courses endpoint
