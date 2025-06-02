@@ -6,14 +6,25 @@ import { CustomTable } from "@/components/ui/custom-table"
 import { Column } from "@/types/table"
 import { Attendee } from "@/types/attendee"
 import { getAttendees, deleteAttendee } from "@/services/attendeeService"
+import { createRemark, updateRemark, deleteRemark, getAttendeeRemarks } from "@/services/remarkService"
 import { RANK_LABELS } from "@/lib/rank-labels"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Pencil, Trash2, Search, ChevronRight } from "lucide-react"
+import { PlusCircle, Pencil, Trash2, Search, ChevronRight, MessageSquare, MoreHorizontal, Edit, Plus } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { AttendeeDialog, DeleteAttendeeDialog } from "@/components/dialogs/attendee-dialog"
+import { RemarkDialog, DeleteRemarkDialog } from "@/components/dialogs/remark-dialog"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
+import { Remark } from "@/types/remark"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function AttendeesPage() {
   const router = useRouter()
@@ -29,6 +40,17 @@ export default function AttendeesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedAttendee, setSelectedAttendee] = useState<Attendee | undefined>(undefined)
   const [isDeleting, setIsDeleting] = useState(false)
+  
+  // Remark dialog states
+  const [createRemarkDialogOpen, setCreateRemarkDialogOpen] = useState(false)
+  const [editRemarkDialogOpen, setEditRemarkDialogOpen] = useState(false)
+  const [deleteRemarkDialogOpen, setDeleteRemarkDialogOpen] = useState(false)
+  const [selectedRemark, setSelectedRemark] = useState<Remark | undefined>(undefined)
+  const [isDeletingRemark, setIsDeletingRemark] = useState(false)
+  
+  // Remarks data
+  const [attendeeRemarks, setAttendeeRemarks] = useState<Record<string, Remark[]>>({})
+  const [isLoadingRemarks, setIsLoadingRemarks] = useState(false)
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
@@ -51,6 +73,44 @@ export default function AttendeesPage() {
     });
   }, [attendees, searchQuery]);
 
+  // Function to fetch remarks for an attendee
+  const fetchAttendeeRemarks = async (attendeeId: string) => {
+    if (!trainingCenterId || !attendeeId) return [];
+    
+    try {
+      return await getAttendeeRemarks({ trainingCenterId, attendeeId });
+    } catch (error) {
+      console.error(`Error fetching remarks for attendee ${attendeeId}:`, error);
+      return [];
+    }
+  };
+  
+  // Function to fetch all remarks for all attendees
+  const fetchAllRemarks = async (attendeesList: Attendee[]) => {
+    if (!trainingCenterId || attendeesList.length === 0) return;
+    
+    setIsLoadingRemarks(true);
+    const remarksMap: Record<string, Remark[]> = {};
+    
+    try {
+      // Create an array of promises for fetching remarks for each attendee
+      const remarkPromises = attendeesList.map(async (attendee) => {
+        if (attendee.id) {
+          const remarks = await fetchAttendeeRemarks(attendee.id);
+          remarksMap[attendee.id] = remarks;
+        }
+      });
+      
+      // Wait for all promises to resolve
+      await Promise.all(remarkPromises);
+      setAttendeeRemarks(remarksMap);
+    } catch (error) {
+      console.error('Error fetching all remarks:', error);
+    } finally {
+      setIsLoadingRemarks(false);
+    }
+  };
+
   useEffect(() => {
     const fetchAttendees = async () => {
       // Don't attempt to fetch if no training center ID is available
@@ -64,6 +124,9 @@ export default function AttendeesPage() {
         const data = await getAttendees(trainingCenterId)
         setAttendees(data)
         setError(null)
+        
+        // Fetch remarks for all attendees
+        await fetchAllRemarks(data);
       } catch (err) {
         console.error('Error fetching attendees:', err)
         setError('Failed to load attendees. Please try again later.')
@@ -76,71 +139,26 @@ export default function AttendeesPage() {
     fetchAttendees()
   }, [trainingCenterId])
 
-  // Define table columns
-  const columns: Column[] = [
-    {
-      key: "index",
-      header: "#",
-      cell: (_, index) => index + 1
-    },
-    {
-      key: "name",
-      header: "Name",
-      accessorKey: "name"
-    },
-    {
-      key: "surname",
-      header: "Surname",
-      accessorKey: "surname"
-    },
-    {
-      key: "email",
-      header: "Email",
-      accessorKey: "email"
-    },
-    {
-      key: "telephone",
-      header: "Telephone",
-      accessorKey: "telephone"
-    },
-    {
-      key: "rank",
-      header: "Rank",
-      cell: (row: Attendee) => RANK_LABELS[row.rank] || row.rank
-    },
-    {
-      key: "remark",
-      header: "Remark",
-      accessorKey: "remark"
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      cell: (row: Attendee) => (
-        <div className="flex space-x-2">
-          <Button variant="ghost" size="icon" onClick={() => handleEdit(row)}>
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => handleDelete(row)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      )
-    }
-  ]
-
   // Refresh the attendees list
   const refreshAttendees = async () => {
-    if (!trainingCenterId) return
+    if (!trainingCenterId) {
+      toast.error("Training center ID is required")
+      return
+    }
     
     try {
       setIsLoading(true)
       const data = await getAttendees(trainingCenterId)
       setAttendees(data)
       setError(null)
+      
+      // Also refresh remarks
+      await fetchAllRemarks(data);
+      
+      toast.success("Attendees list refreshed")
     } catch (err) {
       console.error('Error refreshing attendees:', err)
-      toast.error('Failed to refresh attendees list')
+      toast.error('Failed to refresh attendees. Please try again later.')
     } finally {
       setIsLoading(false)
     }
@@ -175,7 +193,10 @@ export default function AttendeesPage() {
   
   // Handle delete confirmation
   const handleDeleteConfirm = async (attendee: Attendee) => {
-    if (!trainingCenterId || !attendee.id) return
+    if (!trainingCenterId) {
+      toast.error("Training center ID is required")
+      return
+    }
     
     setIsDeleting(true)
     try {
@@ -184,8 +205,12 @@ export default function AttendeesPage() {
         attendeeId: attendee.id
       })
       toast.success(`${attendee.name} ${attendee.surname} has been deleted`)
-      await refreshAttendees()
+      
+      // First close the dialog
       setDeleteDialogOpen(false)
+      
+      // Then refresh data
+      await refreshAttendees()
     } catch (error) {
       console.error('Error deleting attendee:', error)
       toast.error('Failed to delete attendee. Please try again.')
@@ -193,6 +218,193 @@ export default function AttendeesPage() {
       setIsDeleting(false)
     }
   }
+
+  // Remark handler functions
+  const handleAddRemark = (attendee: Attendee) => {
+    // First set the selected attendee
+    setSelectedAttendee(attendee)
+    // Then open the dialog with a slight delay to ensure state is set
+    setTimeout(() => {
+      setCreateRemarkDialogOpen(true)
+    }, 0)
+  }
+
+  const handleEditRemark = (attendee: Attendee, remark: Remark) => {
+    // First set the selected attendee and remark
+    setSelectedAttendee(attendee)
+    setSelectedRemark(remark)
+    // Then open the dialog with a slight delay to ensure state is set
+    setTimeout(() => {
+      setEditRemarkDialogOpen(true)
+    }, 0)
+  }
+
+  const handleDeleteRemark = (attendee: Attendee, remark: Remark) => {
+    setSelectedAttendee(attendee)
+    setSelectedRemark(remark)
+    setDeleteRemarkDialogOpen(true)
+  }
+
+  // Handle delete remark confirmation
+  const handleDeleteRemarkConfirm = async (remark: Remark) => {
+    if (!trainingCenterId || !selectedAttendee) {
+      toast.error("Training center ID and attendee are required")
+      return
+    }
+    
+    setIsDeletingRemark(true)
+    try {
+      await deleteRemark({
+        trainingCenterId,
+        attendeeId: selectedAttendee.id,
+        remarkId: remark.id
+      })
+      toast.success("Remark has been deleted")
+      
+      // First close the dialog
+      setDeleteRemarkDialogOpen(false)
+      
+      // Then refresh data
+      await refreshAttendees()
+      
+      // Reset state
+      setSelectedRemark(undefined)
+    } catch (error) {
+      console.error('Error deleting remark:', error)
+      toast.error('Failed to delete remark. Please try again.')
+    } finally {
+      setIsDeletingRemark(false)
+    }
+  }
+
+  // Define table columns
+  const columns: Column[] = [
+    {
+      key: "index",
+      header: "#",
+      cell: (_, index) => index + 1
+    },
+    {
+      key: "name",
+      header: "Name",
+      accessorKey: "name"
+    },
+    {
+      key: "surname",
+      header: "Surname",
+      accessorKey: "surname"
+    },
+    {
+      key: "email",
+      header: "Email",
+      accessorKey: "email"
+    },
+    {
+      key: "telephone",
+      header: "Telephone",
+      accessorKey: "telephone"
+    },
+    {
+      key: "rank",
+      header: "Rank",
+      cell: (row: Attendee) => RANK_LABELS[row.rank] || row.rank
+    },
+    {
+      key: "remarks",
+      header: "Remarks",
+      cell: (row: Attendee) => {
+        if (!row.id) {
+          return <span className="text-muted-foreground text-xs">No ID</span>;
+        }
+        
+        if (isLoadingRemarks) {
+          return <span className="text-muted-foreground text-xs">Loading...</span>;
+        }
+        
+        const remarks = attendeeRemarks[row.id] || [];
+        
+        if (remarks.length === 0) {
+          return <span className="text-muted-foreground text-xs">No remarks</span>;
+        }
+        
+        // Show the most recent remark with a count
+        const latestRemark = remarks[0];
+        return (
+          <div className="max-w-[200px] truncate">
+            <span className="text-xs font-medium">
+              {remarks.length > 1 ? `(${remarks.length}) ` : ''}
+              {latestRemark.remarkText}
+            </span>
+          </div>
+        );
+      }
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      cell: (row: Attendee) => {
+        const remarks = row.id ? attendeeRemarks[row.id] || [] : [];
+        
+        return (
+          <div className="flex space-x-2">
+            <Button variant="ghost" size="icon" onClick={() => handleEdit(row)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MessageSquare className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[200px]">
+                <DropdownMenuLabel>Manage Remarks</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => handleAddRemark(row)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add new remark
+                </DropdownMenuItem>
+                
+                {remarks.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">
+                      Edit existing remarks
+                    </DropdownMenuLabel>
+                    
+                    {remarks.slice(0, 5).map((remark) => (
+                      <DropdownMenuItem 
+                        key={remark.id} 
+                        onClick={() => handleEditRemark(row, remark)}
+                        className="flex justify-between items-center"
+                      >
+                        <span className="truncate max-w-[120px] text-xs">
+                          {remark.remarkText}
+                        </span>
+                        <Edit className="h-3 w-3 ml-2 flex-shrink-0" />
+                      </DropdownMenuItem>
+                    ))}
+                    
+                    {remarks.length > 5 && (
+                      <DropdownMenuItem 
+                        onClick={() => handleAddRemark(row)}
+                        className="text-xs text-muted-foreground"
+                      >
+                        View all {remarks.length} remarks...
+                      </DropdownMenuItem>
+                    )}
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            <Button variant="ghost" size="icon" onClick={() => handleDelete(row)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      }
+    }
+  ]
 
   return (
     <PageLayout title="Attendees">
@@ -291,6 +503,40 @@ export default function AttendeesPage() {
           onConfirm={handleDeleteConfirm}
           isDeleting={isDeleting}
         />
+
+        {/* Create Remark Dialog */}
+        {selectedAttendee && (
+          <RemarkDialog
+            open={createRemarkDialogOpen}
+            onOpenChange={setCreateRemarkDialogOpen}
+            mode="create"
+            attendeeId={selectedAttendee.id}
+            onSuccess={refreshAttendees}
+          />
+        )}
+        
+        {/* Edit Remark Dialog */}
+        {selectedAttendee && selectedRemark && (
+          <RemarkDialog
+            open={editRemarkDialogOpen}
+            onOpenChange={setEditRemarkDialogOpen}
+            mode="edit"
+            attendeeId={selectedAttendee.id}
+            remark={selectedRemark}
+            onSuccess={refreshAttendees}
+          />
+        )}
+        
+        {/* Delete Remark Dialog */}
+        {selectedRemark && (
+          <DeleteRemarkDialog
+            open={deleteRemarkDialogOpen}
+            onOpenChange={setDeleteRemarkDialogOpen}
+            remark={selectedRemark}
+            onConfirm={handleDeleteRemarkConfirm}
+            isDeleting={isDeletingRemark}
+          />
+        )}
       </div>
     </PageLayout>
   )

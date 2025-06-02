@@ -11,10 +11,14 @@ import { Attendee } from "@/types/attendee"
 import { getAttendeeById } from "@/services/attendeeService"
 import { RANK_LABELS } from "@/lib/rank-labels"
 import { useAuth } from "@/hooks/useAuth"
-import { Loader2, Mail, Phone, Award, Edit } from "lucide-react"
+import { Loader2, Mail, Phone, Award, Edit, MessageSquare, Plus, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { AttendeeDialog } from "@/components/dialogs/attendee-dialog"
+import { RemarkDialog } from "@/components/dialogs/remark-dialog"
 import { useRouter } from "next/navigation"
+import { Remark } from "@/types/remark"
+import { getAttendeeRemarks } from "@/services/remarkService"
+import { format } from "date-fns"
 
 export default function AttendeeDetailPage() {
   const searchParams = useSearchParams()
@@ -25,9 +29,38 @@ export default function AttendeeDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   
+  // Remarks state
+  const [remarks, setRemarks] = useState<Remark[]>([])
+  const [isLoadingRemarks, setIsLoadingRemarks] = useState(false)
+  const [createRemarkDialogOpen, setCreateRemarkDialogOpen] = useState(false)
+  const [editRemarkDialogOpen, setEditRemarkDialogOpen] = useState(false)
+  const [selectedRemark, setSelectedRemark] = useState<Remark | undefined>(undefined)
+  
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
   const attendeeId = searchParams.get("id")
+
+  // Function to fetch remarks for the attendee
+  const fetchRemarks = async () => {
+    if (!trainingCenterId || !attendeeId) {
+      return
+    }
+    
+    setIsLoadingRemarks(true)
+    try {
+      const data = await getAttendeeRemarks({ trainingCenterId, attendeeId })
+      // Sort remarks by creation date (newest first)
+      const sortedRemarks = data.sort((a, b) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
+      setRemarks(sortedRemarks)
+    } catch (err) {
+      console.error('Error fetching remarks:', err)
+      toast.error('Failed to load remarks. Please try again.')
+    } finally {
+      setIsLoadingRemarks(false)
+    }
+  }
 
   useEffect(() => {
     const fetchAttendee = async () => {
@@ -53,6 +86,9 @@ export default function AttendeeDetailPage() {
         console.log('DEBUG - Attendee Detail - API response:', data)
         setAttendee(data)
         setError(null)
+        
+        // After fetching attendee, fetch their remarks
+        await fetchRemarks()
       } catch (err) {
         console.error('DEBUG - Attendee Detail - Error fetching details:', err)
         setError('Failed to load attendee details. Please try again later.')
@@ -80,6 +116,29 @@ export default function AttendeeDetailPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+  
+  // Handle remark operations
+  const handleAddRemark = () => {
+    setSelectedRemark(undefined)
+    // Use setTimeout to ensure state is set before opening dialog
+    setTimeout(() => {
+      setCreateRemarkDialogOpen(true)
+    }, 0)
+  }
+  
+  const handleEditRemark = (remark: Remark) => {
+    setSelectedRemark(remark)
+    // Use setTimeout to ensure state is set before opening dialog
+    setTimeout(() => {
+      setEditRemarkDialogOpen(true)
+    }, 0)
+  }
+  
+  const handleRemarkSuccess = async () => {
+    // Refresh remarks after successful operation
+    await fetchRemarks()
+    toast.success("Remarks updated successfully")
   }
 
   const getInitials = (name?: string, surname?: string) => {
@@ -153,8 +212,9 @@ export default function AttendeeDetailPage() {
         
         {/* Tabs */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="remarks">Remarks</TabsTrigger>
             <TabsTrigger value="courses">Courses</TabsTrigger>
             <TabsTrigger value="quizzes">Quiz Attempts</TabsTrigger>
           </TabsList>
@@ -221,6 +281,75 @@ export default function AttendeeDetailPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Remarks Tab */}
+          <TabsContent value="remarks" className="mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Remarks</CardTitle>
+                  <CardDescription>Notes and comments about this attendee</CardDescription>
+                </div>
+                <div className="flex space-x-2">
+                  <Button variant="outline" size="sm" onClick={fetchRemarks}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                  <Button size="sm" onClick={handleAddRemark}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Remark
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoadingRemarks ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : remarks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="rounded-full bg-muted p-3">
+                      <MessageSquare className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-medium">No Remarks Yet</h3>
+                    <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+                      There are no remarks for this attendee yet. Add a remark to keep track of important information.
+                    </p>
+                    <Button className="mt-4" onClick={handleAddRemark}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add First Remark
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {remarks.map((remark) => (
+                      <Card key={remark.id} className="overflow-hidden">
+                        <CardHeader className="bg-muted/50 py-3 px-4">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-xs text-muted-foreground">
+                                Created: {remark.createdAt ? format(new Date(remark.createdAt), 'MMM d, yyyy HH:mm') : 'Unknown date'}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Last updated: {remark.lastUpdatedAt ? format(new Date(remark.lastUpdatedAt), 'MMM d, yyyy HH:mm') : 'Unknown date'}
+                              </p>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => handleEditRemark(remark)}>
+                              <Edit className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="py-3 px-4">
+                          <p className="whitespace-pre-line text-sm">{remark.remarkText}</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
           
           {/* Courses Tab */}
           <TabsContent value="courses" className="mt-6">
@@ -274,6 +403,29 @@ export default function AttendeeDetailPage() {
         onSuccess={handleEditSuccess}
         mode="edit"
       />
+
+      {/* Create Remark Dialog */}
+      {attendeeId && (
+        <RemarkDialog
+          open={createRemarkDialogOpen}
+          onOpenChange={setCreateRemarkDialogOpen}
+          mode="create"
+          attendeeId={attendeeId}
+          onSuccess={handleRemarkSuccess}
+        />
+      )}
+      
+      {/* Edit Remark Dialog */}
+      {attendeeId && selectedRemark && (
+        <RemarkDialog
+          open={editRemarkDialogOpen}
+          onOpenChange={setEditRemarkDialogOpen}
+          mode="edit"
+          attendeeId={attendeeId}
+          remark={selectedRemark}
+          onSuccess={handleRemarkSuccess}
+        />
+      )}
     </PageLayout>
   )
 }
