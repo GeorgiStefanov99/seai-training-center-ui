@@ -294,11 +294,21 @@ export default function CourseTemplateDetailPage() {
     if (!trainingCenterId || !templateId) return
     
     try {
+      // Clear existing records before fetching to avoid stale data
+      setWaitlistRecords([])
       setIsLoadingWaitlist(true)
+      
+      // Add timestamp to prevent caching issues
+      const timestamp = new Date().getTime()
+      console.log(`Fetching waitlist records at ${timestamp} for template ${templateId}`)
+      
+      // Add timestamp to URL to prevent caching
       const data = await getWaitlistRecordsByTemplate({
         trainingCenterId,
-        courseTemplateId: templateId
+        courseTemplateId: `${templateId}?_t=${timestamp}`
       })
+      
+      console.log(`Received ${data.length} waitlist records:`, data)
       setWaitlistRecords(data)
       
       // After fetching waitlist records, fetch remarks for each attendee
@@ -355,7 +365,10 @@ export default function CourseTemplateDetailPage() {
   // Handle editing a waitlist record
   const handleEditWaitlistRecord = (record: WaitlistRecord) => {
     setSelectedWaitlistRecord(record)
-    setWaitlistEditDialogOpen(true)
+    // Use setTimeout to ensure state is updated before opening dialog
+    setTimeout(() => {
+      setWaitlistEditDialogOpen(true)
+    }, 10)
   }
   
   // Handle deleting a waitlist record
@@ -977,12 +990,25 @@ export default function CourseTemplateDetailPage() {
       )}
       
       {/* Waitlist Edit Dialog */}
-      <WaitlistEditDialog
-        open={waitlistEditDialogOpen}
-        onOpenChange={setWaitlistEditDialogOpen}
-        waitlistRecord={selectedWaitlistRecord}
-        onSuccess={fetchWaitlistRecords}
-      />
+      {selectedWaitlistRecord && (
+        <WaitlistEditDialog
+          open={waitlistEditDialogOpen}
+          onOpenChange={(open) => {
+            setWaitlistEditDialogOpen(open);
+            // If dialog is closing, clear the selected record after a short delay
+            if (!open) {
+              setTimeout(() => {
+                setSelectedWaitlistRecord(null);
+              }, 100);
+            }
+          }}
+          waitlistRecord={selectedWaitlistRecord}
+          onSuccess={() => {
+            // Fetch waitlist records and then reset dialog state
+            fetchWaitlistRecords();
+          }}
+        />
+      )}
       
       {/* Course Attendees Management Dialog */}
       {selectedCourseForAttendees && (

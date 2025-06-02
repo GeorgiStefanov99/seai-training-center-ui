@@ -65,14 +65,9 @@ export function WaitlistEditDialog({
   
   // Handle dialog close to ensure proper cleanup
   const handleDialogChange = (newOpenState: boolean) => {
-    // If dialog is closing and we're not in the middle of submitting
-    if (!newOpenState && !isSubmitting) {
-      // Call the parent's onOpenChange function with a slight delay
-      // to ensure state is properly managed
-      setTimeout(() => {
-        onOpenChange(false);
-      }, 100);
-    }
+    // Directly call the parent's onOpenChange function without delay
+    // This ensures the dialog state is properly managed
+    onOpenChange(newOpenState);
   };
 
   // Initialize the form with default values from the waitlist record
@@ -112,10 +107,8 @@ export function WaitlistEditDialog({
       toast.success("Waitlist record updated successfully");
       // First call onSuccess to refresh data
       onSuccess();
-      // Then safely close the dialog
-      setTimeout(() => {
-        onOpenChange(false);
-      }, 100);
+      // Then immediately close the dialog
+      onOpenChange(false);
     } catch (error) {
       console.error("Error updating waitlist record:", error);
       toast.error("Failed to update waitlist record. Please try again.");
