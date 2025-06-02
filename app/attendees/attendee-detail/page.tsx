@@ -7,20 +7,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Attendee } from "@/types/attendee"
+import { Attendee, AttendeeApiParams } from "@/types/attendee"
+import { Course } from "@/types/course"
 import { getAttendeeById } from "@/services/attendeeService"
 import { RANK_LABELS } from "@/lib/rank-labels"
 import { useAuth } from "@/hooks/useAuth"
-import { Loader2, Mail, Phone, Award, Edit, MessageSquare, Plus, RefreshCw, Calendar, Trash2, ArrowLeft } from "lucide-react"
+import { Loader2, Mail, Phone, Award, Edit, MessageSquare, Plus, RefreshCw, Calendar, Trash2, ArrowLeft, Clock, ExternalLink } from "lucide-react"
 import { toast } from "sonner"
 import { AttendeeDialog } from "@/components/dialogs/attendee-dialog"
 import { RemarkDialog } from "@/components/dialogs/remark-dialog"
 import { useRouter } from "next/navigation"
-import { Remark } from "@/types/remark"
+import { Remark } from '@/types/remark'
+import { WaitlistRecord, CourseTemplate } from '@/types/course-template'
 import { getAttendeeRemarks } from "@/services/remarkService"
 import { format } from "date-fns"
-import { Course } from "@/types/course"
 import { getAttendeeEnrolledCourses, removeAttendeeFromCourse } from "@/services/attendeeCourseService"
+import { getWaitlistRecordsByAttendee } from "@/services/waitlistService"
+import { getCourseTemplateById } from "@/services/courseTemplateService"
+import { WaitlistEditDialog } from "@/components/dialogs/waitlist-edit-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,6 +58,13 @@ export default function AttendeeDetailPage() {
   const [removeCourseDialogOpen, setRemoveCourseDialogOpen] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   
+  // Waitlist state
+  const [waitlistRecords, setWaitlistRecords] = useState<WaitlistRecord[]>([])
+  const [isLoadingWaitlist, setIsLoadingWaitlist] = useState(false)
+  const [waitlistEditDialogOpen, setWaitlistEditDialogOpen] = useState(false)
+  const [selectedWaitlistRecord, setSelectedWaitlistRecord] = useState<WaitlistRecord | null>(null)
+  const [courseTemplates, setCourseTemplates] = useState<{[key: string]: CourseTemplate}>({})
+  
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
   const attendeeId = searchParams.get("id")
@@ -66,7 +77,7 @@ export default function AttendeeDetailPage() {
     
     setIsLoadingRemarks(true)
     try {
-      const data = await getAttendeeRemarks({ trainingCenterId, attendeeId })
+      const data = await getAttendeeRemarks({ trainingCenterId, attendeeId: attendeeId as string })
       // Sort remarks by creation date (newest first)
       const sortedRemarks = data.sort((a, b) => {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -88,13 +99,117 @@ export default function AttendeeDetailPage() {
     
     setIsLoadingCourses(true)
     try {
-      const data = await getAttendeeEnrolledCourses({ trainingCenterId, attendeeId })
+      const data = await getAttendeeEnrolledCourses({ trainingCenterId, attendeeId: attendeeId as string })
       setEnrolledCourses(data)
     } catch (err) {
       console.error('Error fetching enrolled courses:', err)
       toast.error('Failed to load enrolled courses. Please try again.')
     } finally {
       setIsLoadingCourses(false)
+    }
+  }
+  
+  // Function to fetch waitlist records for the attendee
+  const fetchWaitlistRecords = async () => {
+    if (!trainingCenterId || !attendeeId) {
+      return
+    }
+    
+    setIsLoadingWaitlist(true)
+    try {
+      // Fetch waitlist records for this attendee
+      console.log('Fetching waitlist records for attendee:', attendeeId)
+      const records = await getWaitlistRecordsByAttendee({ trainingCenterId, attendeeId: attendeeId as string })
+      console.log('Waitlist records received:', records.length, records)
+      
+      // If we have no records, just set empty arrays and return
+      if (!records || records.length === 0) {
+        console.log('No waitlist records found')
+        setWaitlistRecords([])
+        setCourseTemplates({})
+        setIsLoadingWaitlist(false)
+        return
+      }
+      
+      // Set the waitlist records immediately so UI can show loading state
+      setWaitlistRecords(records)
+      
+      // Create a new templates object for each fetch
+      const templates: {[key: string]: CourseTemplate} = {}
+      
+      // Process each record sequentially to avoid race conditions
+      for (const record of records) {
+        // Use courseTemplateId from the API response
+        const templateId = record.courseTemplateId
+        
+        // Skip records without template ID
+        if (!templateId) {
+          continue
+        }
+        
+        // Skip already processed templates
+        if (templates[templateId]) {
+          console.log(`Template for ${templateId} already cached`)
+          continue
+        }
+        
+        try {
+          console.log(`Fetching template for ID: ${templateId}`)
+          
+          // Fetch the template data
+          const templateData = await getCourseTemplateById({
+            trainingCenterId,
+            courseTemplateId: templateId
+          })
+          
+          if (templateData) {
+            console.log(`Template data received for ${templateId}:`, templateData)
+            templates[templateId] = templateData
+            
+            // Update the state with each template as it's fetched
+            // This creates a new object reference to trigger re-render
+            setCourseTemplates(prevTemplates => ({
+              ...prevTemplates,
+              [templateId]: templateData
+            }))
+          } else {
+            throw new Error('Template data is empty')
+          }
+        } catch (err) {
+          console.error(`Error fetching template ${templateId}:`, err)
+          
+          // Create a fallback template with all required properties
+          const fallbackTemplate: CourseTemplate = {
+            id: templateId,
+            name: 'Unknown Course',
+            description: 'Could not load course details',
+            trainingCenterId: trainingCenterId,
+            // Required properties from CourseTemplateBase
+            price: 0,
+            currency: 'BGN',
+            maxSeats: 0,
+            // Optional properties
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+          
+          // Add the fallback to our templates object
+          templates[templateId] = fallbackTemplate
+          
+          // Update the state with the fallback
+          setCourseTemplates(prevTemplates => ({
+            ...prevTemplates,
+            [templateId]: fallbackTemplate
+          }))
+        }
+      }
+      
+      console.log('All templates processed:', Object.keys(templates).length, templates)
+    } catch (err) {
+      console.error('Error fetching waitlist records:', err)
+      toast.error('Failed to load waitlist records. Please try again.')
+    } finally {
+      setIsLoadingWaitlist(false)
     }
   }
 
@@ -156,7 +271,8 @@ export default function AttendeeDetailPage() {
         // After fetching attendee, fetch their remarks and courses
         await Promise.all([
           fetchRemarks(),
-          fetchEnrolledCourses()
+          fetchEnrolledCourses(),
+          fetchWaitlistRecords()
         ])
       } catch (err) {
         console.error('DEBUG - Attendee Detail - Error fetching details:', err)
@@ -208,6 +324,42 @@ export default function AttendeeDetailPage() {
     // Refresh remarks after successful operation
     await fetchRemarks()
     toast.success("Remarks updated successfully")
+  }
+  
+  // Handle waitlist operations
+  const handleEditWaitlist = (record: WaitlistRecord) => {
+    // If attendeeResponse is missing, add it from the current attendee
+    if (!record.attendeeResponse && attendee) {
+      // Use type assertion to handle the AttendeeRank type mismatch
+      const attendeeResponse = {
+        id: attendee.id,
+        name: attendee.name,
+        surname: attendee.surname,
+        email: attendee.email,
+        telephone: attendee.telephone || '',
+        rank: (attendee.rank || 'CAPTAIN') as any // Use type assertion to handle different rank enums
+      }
+      
+      const enrichedRecord = {
+        ...record,
+        attendeeResponse
+      }
+      setSelectedWaitlistRecord(enrichedRecord)
+    } else {
+      setSelectedWaitlistRecord(record)
+    }
+    setWaitlistEditDialogOpen(true)
+  }
+  
+  const handleWaitlistSuccess = async () => {
+    // Refresh waitlist records after successful operation
+    await fetchWaitlistRecords()
+    toast.success("Waitlist record updated successfully")
+  }
+  
+  // Navigate to course template details
+  const navigateToCourseTemplate = (templateId: string) => {
+    router.push(`/course-templates/detail?id=${templateId}`)
   }
 
   const getInitials = (name?: string, surname?: string) => {
@@ -292,10 +444,11 @@ export default function AttendeeDetailPage() {
         
         {/* Tabs */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="remarks">Remarks</TabsTrigger>
             <TabsTrigger value="courses">Courses</TabsTrigger>
+            <TabsTrigger value="waitlist">Waitlist</TabsTrigger>
             <TabsTrigger value="quizzes">Quiz Attempts</TabsTrigger>
           </TabsList>
           
@@ -523,6 +676,97 @@ export default function AttendeeDetailPage() {
             </Card>
           </TabsContent>
           
+          {/* Waitlist Tab */}
+          <TabsContent value="waitlist" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Waitlist Records</CardTitle>
+                <CardDescription>Attendee is currently waitlisted for</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingWaitlist ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : waitlistRecords.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="rounded-full bg-muted p-3">
+                      <Clock className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-medium">No Waitlist Records</h3>
+                    <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+                      This attendee is not currently on any waitlists.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {waitlistRecords.map((record) => {
+                      // Get the template ID from the record using courseTemplateId
+                      const templateId = record.courseTemplateId;
+                      const courseTemplate = courseTemplates[templateId]
+                      return (
+                        <Card key={record.id} className="overflow-hidden">
+                          <CardHeader className="bg-muted/50 py-3 px-4">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="text-base">
+                                  {courseTemplate ? courseTemplate.name : 'Loading course details...'}
+                                </CardTitle>
+                              </div>
+                              <div className={`px-3 py-1 rounded-full text-sm font-medium ${record.status === 'WAITING' ? 'bg-yellow-100 text-yellow-800' : record.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {record.status === 'WAITING' ? 'Waiting' : record.status === 'CONFIRMED' ? 'Confirmed' : 'Cancelled'}
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="py-3 px-4">
+                            {courseTemplate ? (
+                              <>
+                                {courseTemplate.description && (
+                                  <div className="mb-4">
+                                    <p className="text-sm text-muted-foreground">
+                                      {courseTemplate.description.length > 150 ? 
+                                        `${courseTemplate.description.substring(0, 150)}...` : 
+                                        courseTemplate.description}
+                                    </p>
+                                  </div>
+                                )}
+                                <div className="flex justify-between items-center">
+                                  <div className="flex space-x-2">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => navigateToCourseTemplate(templateId)}
+                                    >
+                                      <ExternalLink className="h-4 w-4 mr-2" />
+                                      View Course
+                                    </Button>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => handleEditWaitlist(record)}
+                                    >
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Update Status
+                                    </Button>
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex flex-col items-center py-3 space-y-2">
+                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                <p className="text-sm text-muted-foreground">Loading course details...</p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
           {/* Quiz Attempts Tab */}
           <TabsContent value="quizzes" className="mt-6">
             <Card>
@@ -550,7 +794,7 @@ export default function AttendeeDetailPage() {
       <AttendeeDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
-        attendee={attendee}
+        attendee={attendee || undefined}
         onSuccess={handleEditSuccess}
         mode="edit"
       />
@@ -596,6 +840,16 @@ export default function AttendeeDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Waitlist Edit Dialog */}
+      {selectedWaitlistRecord && (
+        <WaitlistEditDialog
+          open={waitlistEditDialogOpen}
+          onOpenChange={setWaitlistEditDialogOpen}
+          waitlistRecord={selectedWaitlistRecord}
+          onSuccess={handleWaitlistSuccess}
+        />
+      )}
     </PageLayout>
   )
 }

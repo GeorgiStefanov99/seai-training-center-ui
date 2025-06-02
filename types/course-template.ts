@@ -68,15 +68,17 @@ export interface WaitlistAttendeeResponse {
 }
 
 // Waitlist record status
-export type WaitlistStatus = "WAITING" | "ENROLLED" | "CANCELLED";
+export type WaitlistStatus = "WAITING" | "ENROLLED" | "CONFIRMED" | "CANCELLED" | "DELETED";
 
 // Waitlist record interface
 export interface WaitlistRecord {
   id: string;
   trainingCenterId: string;
   attendeeResponse: WaitlistAttendeeResponse;
-  templateId: string;
+  templateId?: string; // Keep for backward compatibility
+  courseTemplateId: string; // Add this property to match API response
   status: WaitlistStatus;
+  timestamp?: string; // Add timestamp from API response
 }
 
 // Response type for the GET waitlist records endpoint

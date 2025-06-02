@@ -255,6 +255,29 @@ export async function createWaitlistRecordWithNewAttendee({
   }
 }
 
+/**
+ * Get waitlist records for a specific attendee
+ * @param params - API parameters including training center ID and attendee ID
+ * @returns Promise with array of waitlist records
+ */
+export async function getWaitlistRecordsByAttendee({ 
+  trainingCenterId, 
+  attendeeId 
+}: WaitlistApiParams): Promise<WaitlistRecord[]> {
+  try {
+    const token = getAuthToken();
+    const headers = getAuthHeaders(token);
+    const response = await axios.get<WaitlistRecord[]>(
+      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/waitlist-records/by-attendee/${attendeeId}`,
+      { headers }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching waitlist records by attendee:", error);
+    throw error;
+  }
+}
+
 // Helper function to get auth headers
 export const getAuthHeaders = (token: string | null): Record<string, string> => {
   const headers: Record<string, string> = {

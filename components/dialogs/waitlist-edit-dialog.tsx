@@ -130,12 +130,20 @@ export function WaitlistEditDialog({
         {waitlistRecord && (
           <div className="mb-4">
             <p className="text-sm font-medium">Attendee</p>
-            <p className="text-sm text-muted-foreground">
-              {waitlistRecord.attendeeResponse.name} {waitlistRecord.attendeeResponse.surname}
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {waitlistRecord.attendeeResponse.email}
-            </p>
+            {waitlistRecord.attendeeResponse ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {waitlistRecord.attendeeResponse.name} {waitlistRecord.attendeeResponse.surname}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {waitlistRecord.attendeeResponse.email}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Attendee details not available
+              </p>
+            )}
           </div>
         )}
         
