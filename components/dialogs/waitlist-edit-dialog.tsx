@@ -62,6 +62,15 @@ export function WaitlistEditDialog({
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || "";
+  
+  // Handle dialog close to ensure proper cleanup
+  const handleDialogChange = (newOpenState: boolean) => {
+    // If dialog is closing and we're not in the middle of submitting
+    if (!newOpenState && !isSubmitting) {
+      // Call the parent's onOpenChange function
+      onOpenChange(false);
+    }
+  };
 
   // Initialize the form with default values from the waitlist record
   const form = useForm<FormValues>({
@@ -85,15 +94,24 @@ export function WaitlistEditDialog({
     setIsSubmitting(true);
 
     try {
+      // The API only expects the status field in the request body
+      const updatePayload = {
+        status: data.status
+      };
+
       // Update the waitlist record status
       await updateWaitlistRecord({
         trainingCenterId,
         waitlistRecordId: waitlistRecord.id
-      }, { status: data.status });
+      }, updatePayload);
       
       toast.success("Waitlist record updated successfully");
+      // First call onSuccess to refresh data
       onSuccess();
-      onOpenChange(false);
+      // Then safely close the dialog
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 100);
     } catch (error) {
       console.error("Error updating waitlist record:", error);
       toast.error("Failed to update waitlist record. Please try again.");
@@ -103,7 +121,7 @@ export function WaitlistEditDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Edit Waitlist Record</DialogTitle>
