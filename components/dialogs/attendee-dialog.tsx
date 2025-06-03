@@ -107,6 +107,7 @@ export function AttendeeDialog({
           onSubmit={handleSubmit}
           onCancel={handleCancel}
           isSubmitting={isSubmitting}
+          showRemark={mode === "create"}
         />
       </DialogContent>
     </Dialog>

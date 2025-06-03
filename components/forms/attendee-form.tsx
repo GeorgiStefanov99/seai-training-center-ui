@@ -52,6 +52,7 @@ interface AttendeeFormProps {
   onSubmit: (values: AttendeeFormValues) => void
   onCancel: () => void
   isSubmitting?: boolean
+  showRemark?: boolean
 }
 
 export function AttendeeForm({
@@ -66,6 +67,7 @@ export function AttendeeForm({
   onSubmit,
   onCancel,
   isSubmitting = false,
+  showRemark = true,
 }: AttendeeFormProps) {
   const form = useForm<AttendeeFormValues>({
     resolver: zodResolver(formSchema),
@@ -158,23 +160,25 @@ export function AttendeeForm({
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="remark"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Remarks</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Enter any additional information or remarks"
-                  className="resize-none"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {showRemark && (
+          <FormField
+            control={form.control}
+            name="remark"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Remarks</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Enter any additional information or remarks"
+                    className="resize-none"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         <div className="flex justify-end space-x-2 pt-4">
           <Button
