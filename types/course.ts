@@ -1,12 +1,12 @@
-// Time format should be a string in format HH:mm
+// Time format should be a string in format HH:mm:ss
 
 // Base course properties used for creating and updating
 export interface CourseBase {
   name: string;
   startDate: string;
   endDate: string;
-  startTime: string; // Format: "HH:mm"
-  endTime: string; // Format: "HH:mm"
+  startTime: string; // Format: "HH:mm:ss"
+  endTime: string; // Format: "HH:mm:ss"
   price: number;
   currency: string;
   maxSeats: number;

@@ -24,6 +24,8 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { DateFields } from "@/components/dialogs/date-fields"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -40,21 +42,21 @@ const formSchema = z.object({
   startDateStr: z.string().min(1, "Start date is required")
     .refine(val => {
       try {
-        parse(val, "yyyy-MM-dd", new Date());
+        parse(val, "dd/MM/yyyy", new Date());
         return true;
       } catch (e) {
         return false;
       }
-    }, { message: "Invalid date format" }),
+    }, { message: "Invalid date format (dd/MM/yyyy)" }),
   endDateStr: z.string().min(1, "End date is required")
     .refine(val => {
       try {
-        parse(val, "yyyy-MM-dd", new Date());
+        parse(val, "dd/MM/yyyy", new Date());
         return true;
       } catch (e) {
         return false;
       }
-    }, { message: "Invalid date format" }),
+    }, { message: "Invalid date format (dd/MM/yyyy)" }),
   startTime: z.string().min(1, "Start time is required")
     .refine(val => /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val), { 
       message: "Invalid time format (HH:MM)" 
@@ -68,8 +70,8 @@ const formSchema = z.object({
   maxSeats: z.coerce.number().min(1, "Maximum seats must be at least 1"),
   description: z.string().optional(),
 }).refine(data => {
-  const startDate = parse(data.startDateStr, "yyyy-MM-dd", new Date());
-  const endDate = parse(data.endDateStr, "yyyy-MM-dd", new Date());
+  const startDate = parse(data.startDateStr, "dd/MM/yyyy", new Date());
+  const endDate = parse(data.endDateStr, "dd/MM/yyyy", new Date());
   return endDate >= startDate;
 }, {
   message: "End date must be after start date",
@@ -107,8 +109,8 @@ export function CourseSchedulingDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: template.name || "",
-      startDateStr: format(new Date(), "yyyy-MM-dd"),
-      endDateStr: format(addDays(new Date(), 5), "yyyy-MM-dd"),
+      startDateStr: format(new Date(), "dd/MM/yyyy"),
+      endDateStr: format(addDays(new Date(), 5), "dd/MM/yyyy"),
       startTime: "09:00",
       endTime: "17:00",
       price: template.price || 0,
@@ -173,17 +175,21 @@ export function CourseSchedulingDialog({
     setIsSubmitting(true);
 
     try {
-      // Parse dates from strings
-      const startDate = parse(data.startDateStr, "yyyy-MM-dd", new Date());
-      const endDate = parse(data.endDateStr, "yyyy-MM-dd", new Date());
+      // Parse dates from strings using the dd/MM/yyyy format
+      const startDate = parse(data.startDateStr, "dd/MM/yyyy", new Date());
+      const endDate = parse(data.endDateStr, "dd/MM/yyyy", new Date());
       
       // Format times with seconds as required by the backend
-      const startTimeFormatted = `${data.startTime}:00`;
-      const endTimeFormatted = `${data.endTime}:00`;
+      // Ensure proper time formatting with leading zeros
+      const [startHours, startMinutes] = data.startTime.split(':');
+      const [endHours, endMinutes] = data.endTime.split(':');
+      const startTimeFormatted = `${startHours.padStart(2, '0')}:${startMinutes.padStart(2, '0')}:00`;
+      const endTimeFormatted = `${endHours.padStart(2, '0')}:${endMinutes.padStart(2, '0')}:00`;
 
       // Create the course request payload
       const courseRequest: CreateCourseRequest = {
         name: data.name,
+        // Format dates in yyyy-MM-dd format for the backend
         startDate: format(startDate, "yyyy-MM-dd"),
         endDate: format(endDate, "yyyy-MM-dd"),
         startTime: startTimeFormatted,
@@ -191,8 +197,8 @@ export function CourseSchedulingDialog({
         price: data.price,
         currency: data.currency,
         maxSeats: data.maxSeats,
-        description: data.description,
-        templateId: template.id
+        description: data.description || "",
+        templateId: template.id || ""
       };
 
       // Call the API to create the course
@@ -282,42 +288,11 @@ export function CourseSchedulingDialog({
               )}
             />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="startDateStr"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Start Date</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="date" 
-                        {...field}
-                        min={format(new Date(), "yyyy-MM-dd")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="endDateStr"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>End Date</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="date" 
-                        {...field}
-                        min={form.getValues("startDateStr")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <DateFields
+              form={form}
+              startDateName="startDateStr"
+              endDateName="endDateStr"
+            />
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField

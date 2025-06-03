@@ -497,9 +497,39 @@ export default function CourseTemplateDetailPage() {
   // Format date for display
   const formatDate = (dateString: string) => {
     try {
-      return format(new Date(dateString), 'MMM d, yyyy')
+      const date = new Date(dateString);
+      return format(date, "dd/MM/yyyy");
     } catch (e) {
       return dateString
+    }
+  }
+  
+  // Format time for display from date string
+  const formatTime = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return format(date, "HH:mm");
+    } catch (e) {
+      return ""
+    }
+  }
+  
+  // Format time string for display
+  const formatLocalTime = (time?: string) => {
+    if (!time) return "";
+    try {
+      // If it's a string in HH:mm:ss format, extract just HH:mm
+      if (typeof time === 'string') {
+        // Split by colon and take the first two parts (hours and minutes)
+        const parts = time.split(':');
+        if (parts.length >= 2) {
+          return `${parts[0]}:${parts[1]}`;
+        }
+        return time;
+      }
+      return "";
+    } catch (e) {
+      return "";
     }
   }
 
@@ -682,7 +712,9 @@ export default function CourseTemplateDetailPage() {
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Start Date</TableHead>
+                        <TableHead>Start Time</TableHead>
                         <TableHead>End Date</TableHead>
+                        <TableHead>End Time</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Enrolled</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -693,7 +725,9 @@ export default function CourseTemplateDetailPage() {
                         <TableRow key={course.id}>
                           <TableCell className="font-medium">{course.name}</TableCell>
                           <TableCell>{formatDate(course.startDate)}</TableCell>
+                          <TableCell>{formatLocalTime(course.startTime)}</TableCell>
                           <TableCell>{formatDate(course.endDate)}</TableCell>
+                          <TableCell>{formatLocalTime(course.endTime)}</TableCell>
                           <TableCell>
                             <Badge variant={getStatusBadgeVariant(course.status)}>
                               {course.status ? course.status.replace('_', ' ') : 'Unknown'}
