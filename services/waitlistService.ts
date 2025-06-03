@@ -240,7 +240,8 @@ export async function createWaitlistRecordWithNewAttendee({
         telephone: data.attendeeRequest.telephone,
         rank: data.attendeeRequest.rank,
         ...(data.attendeeRequest.remark ? { remark: data.attendeeRequest.remark } : {})
-      }
+      },
+      status: data.status // Include the status in the payload
     };
     
     const response = await axios.post<WaitlistRecord>(

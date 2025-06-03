@@ -195,14 +195,7 @@ export function RemarkDialog({
                 name="remarkText"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex justify-between items-center">
-                      <FormLabel>Remark</FormLabel>
-                      {mode === "edit" && remark?.lastUpdatedAt && (
-                        <span className="text-xs text-muted-foreground">
-                          Last updated: {format(new Date(remark.lastUpdatedAt), 'MMM d, yyyy HH:mm')}
-                        </span>
-                      )}
-                    </div>
+                    <FormLabel>Remark</FormLabel>
                     <FormControl>
                       <Textarea 
                         placeholder="Enter remark text..." 

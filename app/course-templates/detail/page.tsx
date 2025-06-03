@@ -21,6 +21,7 @@ import { CourseSchedulingDialog } from "@/components/dialogs/course-scheduling-d
 import { CourseEditDialog } from "@/components/dialogs/course-edit-dialog"
 import { DeleteConfirmationDialog } from "@/components/dialogs/delete-confirmation-dialog"
 import { WaitlistEditDialog } from "@/components/dialogs/waitlist-edit-dialog"
+import { WaitlistAddDialog } from "@/components/dialogs/waitlist-add-dialog"
 import { CourseAttendeesManagementDialog } from "@/components/dialogs/course-attendees-management-dialog"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
@@ -978,15 +979,17 @@ export default function CourseTemplateDetailPage() {
         onConfirm={confirmDeleteCourse}
       />
       
-      {/* Waitlist Record Dialog - Temporarily disabled until component is recreated */}
-      {templateId && waitlistRecordDialogOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg">
-            <h3 className="text-lg font-medium mb-4">Create Waitlist Record</h3>
-            <p className="mb-4">This functionality is temporarily unavailable.</p>
-            <Button onClick={() => setWaitlistRecordDialogOpen(false)}>Close</Button>
-          </div>
-        </div>
+      {/* Waitlist Add Dialog */}
+      {templateId && (
+        <WaitlistAddDialog
+          open={waitlistRecordDialogOpen}
+          onOpenChange={setWaitlistRecordDialogOpen}
+          courseTemplateId={templateId}
+          onSuccess={() => {
+            fetchWaitlistRecords()
+            toast.success("Waitlist record created successfully")
+          }}
+        />
       )}
       
       {/* Waitlist Edit Dialog */}

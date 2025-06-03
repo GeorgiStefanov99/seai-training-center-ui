@@ -52,6 +52,7 @@ import { Remark } from "@/types/remark"
 import { getAttendeeRemarks, createRemark, updateRemark, deleteRemark } from "@/services/remarkService"
 import { RemarkDialog, DeleteRemarkDialog } from "@/components/dialogs/remark-dialog"
 import { format } from "date-fns"
+import { WaitlistAddDialog } from "@/components/dialogs/waitlist-add-dialog"
 
 export default function WaitlistPage() {
   const router = useRouter()
@@ -498,17 +499,14 @@ export default function WaitlistPage() {
           onConfirm={confirmDeleteRecord}
         />
         
-        {/* Create Waitlist Record Dialog - Temporarily disabled until component is recreated */}
-        {createDialogOpen && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-            <div className="bg-white p-6 rounded-lg shadow-lg">
-              <h3 className="text-lg font-medium mb-4">Create Waitlist Record</h3>
-              <p className="mb-4">This functionality is temporarily unavailable.</p>
-              <Button onClick={() => setCreateDialogOpen(false)}>Close</Button>
-            </div>
-          </div>
-        )}
-        
+        {/* Create Waitlist Record Dialog */}
+        <WaitlistAddDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          onSuccess={fetchWaitlistRecords}
+          courseTemplateId={selectedRecord?.courseTemplateId || null}
+        />
+
         {/* Edit Waitlist Record Dialog */}
         {selectedRecord && (
           <WaitlistEditDialog
