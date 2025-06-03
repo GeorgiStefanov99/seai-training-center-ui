@@ -113,7 +113,11 @@ export function CourseAttendeesManagementDialog({
 
   // Confirm attendee removal
   const confirmRemoveAttendee = async () => {
-    if (!selectedAttendee || !trainingCenterId || !courseId) return;
+    if (!selectedAttendee || !trainingCenterId || !courseId) {
+      setDeleteDialogOpen(false);
+      setSelectedAttendee(null);
+      return;
+    }
     
     try {
       await removeAttendeeFromCourse({
@@ -123,17 +127,27 @@ export function CourseAttendeesManagementDialog({
       });
       
       toast.success(`${selectedAttendee.name} ${selectedAttendee.surname} removed from course successfully`);
-      fetchAttendees();
       
-      // Close the dialog and refresh parent data
+      // Fetch updated attendees list
+      try {
+        await fetchAttendees();
+      } catch (fetchError) {
+        console.error("Error fetching updated attendees:", fetchError);
+      }
+      
+      // Close the dialog and refresh parent data if needed
       if (refreshData) {
-        onOpenChange(false);
-        await refreshData();
+        try {
+          await refreshData();
+        } catch (refreshError) {
+          console.error("Error refreshing parent data:", refreshError);
+        }
       }
     } catch (error) {
       console.error("Error removing attendee from course:", error);
       toast.error("Failed to remove attendee from course. Please try again.");
     } finally {
+      // Always ensure the delete dialog is closed and selected attendee is reset
       setDeleteDialogOpen(false);
       setSelectedAttendee(null);
     }

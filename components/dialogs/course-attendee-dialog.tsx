@@ -139,8 +139,17 @@ export function CourseAttendeeDialog({
       });
       
       toast.success("Attendee assigned to course successfully");
-      await onSuccess();
       form.reset();
+      setSearchQuery("");
+      
+      // Call onSuccess and handle any errors that might occur
+      try {
+        await onSuccess();
+      } catch (successError) {
+        console.error("Error in onSuccess callback:", successError);
+      }
+      
+      // Ensure the dialog closes even if there was an error in onSuccess
       onOpenChange(false);
     } catch (error) {
       console.error("Error assigning attendee to course:", error);

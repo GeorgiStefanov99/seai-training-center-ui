@@ -29,9 +29,9 @@ import { DateFields } from "@/components/dialogs/date-fields"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
-import { createCourse } from "@/services/courseService"
+import { createCourse, updateCourse } from "@/services/courseService"
 import { CourseTemplate, WaitlistRecord } from "@/types/course-template"
-import { CreateCourseRequest } from "@/types/course"
+import { CreateCourseRequest, Course, UpdateCourseRequest } from "@/types/course"
 import { useAuth } from "@/hooks/useAuth"
 import { getWaitlistRecordsByTemplate, deleteWaitlistRecord } from "@/services/waitlistService"
 import { assignAttendeeToCourse } from "@/services/courseAttendeeService"
@@ -85,15 +85,17 @@ type FormValues = z.infer<typeof formSchema>;
 interface CourseSchedulingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  template: CourseTemplate;
+  template: CourseTemplate | null;
   onSuccess: () => void;
+  existingCourse?: Course;
 }
 
 export function CourseSchedulingDialog({
   open,
   onOpenChange,
   template,
-  onSuccess
+  onSuccess,
+  existingCourse
 }: CourseSchedulingDialogProps) {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -101,58 +103,66 @@ export function CourseSchedulingDialog({
   const [selectedWaitlistAttendees, setSelectedWaitlistAttendees] = useState<string[]>([]);
   const [isLoadingWaitlist, setIsLoadingWaitlist] = useState(false);
   
+  // Determine if we're in edit mode
+  const isEditMode = !!existingCourse;
+  
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || "";
+  
+  // Helper function to format time from HH:mm:ss to HH:mm
+  const formatTime = (timeString: string) => {
+    if (!timeString) return "";
+    const parts = timeString.split(':');
+    if (parts.length >= 2) {
+      return `${parts[0]}:${parts[1]}`;
+    }
+    return timeString;
+  };
 
-  // Initialize the form with default values from the template
+  // Initialize the form with default values from the template or existing course
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: template.name || "",
-      startDateStr: format(new Date(), "dd/MM/yyyy"),
-      endDateStr: format(addDays(new Date(), 5), "dd/MM/yyyy"),
-      startTime: "09:00",
-      endTime: "17:00",
-      price: template.price || 0,
-      currency: template.currency || "USD",
-      maxSeats: template.maxSeats || 10,
-      description: template.description || "",
+      name: existingCourse?.name || template?.name || "",
+      startDateStr: existingCourse ? format(new Date(existingCourse.startDate), "dd/MM/yyyy") : format(new Date(), "dd/MM/yyyy"),
+      endDateStr: existingCourse ? format(new Date(existingCourse.endDate), "dd/MM/yyyy") : format(addDays(new Date(), 5), "dd/MM/yyyy"),
+      startTime: existingCourse?.startTime ? formatTime(existingCourse.startTime) : "09:00",
+      endTime: existingCourse?.endTime ? formatTime(existingCourse.endTime) : "17:00",
+      price: existingCourse?.price || template?.price || 0,
+      currency: existingCourse?.currency || template?.currency || "USD",
+      maxSeats: existingCourse?.maxSeats || template?.maxSeats || 10,
+      description: existingCourse?.description || template?.description || "",
     },
   });
 
+  // Fetch waitlist records for the template
+  const fetchWaitlistRecords = async () => {
+    if (!template || !template.id || isEditMode) return;
+    
+    try {
+      setIsLoadingWaitlist(true);
+      const records = await getWaitlistRecordsByTemplate({
+        trainingCenterId,
+        courseTemplateId: template.id,
+      });
+      setWaitlistRecords(records);
+    } catch (error) {
+      console.error("Error fetching waitlist records:", error);
+      toast.error("Failed to fetch waitlist records");
+    } finally {
+      setIsLoadingWaitlist(false);
+    }
+  };
+
   // Fetch waitlist records when dialog opens
   useEffect(() => {
-    if (open && template.id && trainingCenterId) {
+    if (open && template && template.id && trainingCenterId) {
       fetchWaitlistRecords();
     } else {
       // Reset selected attendees when dialog closes
       setSelectedWaitlistAttendees([]);
     }
-  }, [open, template.id, trainingCenterId]);
-
-  // Fetch waitlist records for the template
-  const fetchWaitlistRecords = async () => {
-    if (!template.id || !trainingCenterId) return;
-    
-    setIsLoadingWaitlist(true);
-    try {
-      const records = await getWaitlistRecordsByTemplate({
-        trainingCenterId,
-        courseTemplateId: template.id
-      });
-      
-      // Filter to show both WAITING and CONFIRMED status records
-      const eligibleRecords = records.filter(record => 
-        record.status === "WAITING" || record.status === "CONFIRMED"
-      );
-      setWaitlistRecords(eligibleRecords);
-    } catch (error) {
-      console.error("Error fetching waitlist records:", error);
-      toast.error("Failed to load waitlist records");
-    } finally {
-      setIsLoadingWaitlist(false);
-    }
-  };
+  }, [open, template, template?.id, trainingCenterId]);
 
   // Toggle selection of waitlist attendee
   const toggleWaitlistAttendee = (attendeeId: string) => {
@@ -171,80 +181,100 @@ export function CourseSchedulingDialog({
       toast.error("Training center ID is required");
       return;
     }
-
-    setIsSubmitting(true);
-
+    
     try {
-      // Parse dates from strings using the dd/MM/yyyy format
+      setIsSubmitting(true);
+      
+      // Parse dates from dd/MM/yyyy format
       const startDate = parse(data.startDateStr, "dd/MM/yyyy", new Date());
       const endDate = parse(data.endDateStr, "dd/MM/yyyy", new Date());
       
-      // Format times with seconds as required by the backend
-      // Ensure proper time formatting with leading zeros
+      // Format dates as ISO strings (yyyy-MM-dd)
+      const startDateFormatted = format(startDate, "yyyy-MM-dd");
+      const endDateFormatted = format(endDate, "yyyy-MM-dd");
+      
+      // Extract hours and minutes from time strings
       const [startHours, startMinutes] = data.startTime.split(':');
       const [endHours, endMinutes] = data.endTime.split(':');
+      
+      // Format times with leading zeros and seconds
       const startTimeFormatted = `${startHours.padStart(2, '0')}:${startMinutes.padStart(2, '0')}:00`;
       const endTimeFormatted = `${endHours.padStart(2, '0')}:${endMinutes.padStart(2, '0')}:00`;
-
-      // Create the course request payload
-      const courseRequest: CreateCourseRequest = {
-        name: data.name,
-        // Format dates in yyyy-MM-dd format for the backend
-        startDate: format(startDate, "yyyy-MM-dd"),
-        endDate: format(endDate, "yyyy-MM-dd"),
-        startTime: startTimeFormatted,
-        endTime: endTimeFormatted,
-        price: data.price,
-        currency: data.currency,
-        maxSeats: data.maxSeats,
-        description: data.description || "",
-        templateId: template.id || ""
-      };
-
-      // Call the API to create the course
-      const createdCourse = await createCourse({ trainingCenterId }, courseRequest);
       
-      // If we have selected waitlist attendees, assign them to the course
-      if (selectedWaitlistAttendees.length > 0) {
-        const assignPromises = selectedWaitlistAttendees.map(async (attendeeId) => {
-          try {
-            // First assign the attendee to the course
-            await assignAttendeeToCourse({
-              trainingCenterId,
-              courseId: createdCourse.id,
-              attendeeId
-            });
-            
-            // Find the waitlist record for this attendee
-            const waitlistRecord = waitlistRecords.find(
-              record => record.attendeeResponse.id === attendeeId
-            );
-            
-            // Then delete the waitlist record
-            if (waitlistRecord) {
-              await deleteWaitlistRecord({
-                trainingCenterId,
-                waitlistRecordId: waitlistRecord.id
-              });
-            }
-            
-            return { success: true, attendeeId };
-          } catch (error) {
-            console.error(`Error assigning attendee ${attendeeId} to course:`, error);
-            return { success: false, attendeeId, error };
-          }
-        });
+      if (isEditMode && existingCourse) {
+        // Prepare update course request
+        const updateRequest: UpdateCourseRequest = {
+          name: data.name,
+          description: data.description || "",
+          startDate: startDateFormatted,
+          endDate: endDateFormatted,
+          startTime: startTimeFormatted,
+          endTime: endTimeFormatted,
+          price: data.price,
+          currency: data.currency,
+          maxSeats: data.maxSeats,
+          templateId: existingCourse.templateId || ""
+        };
         
-        const results = await Promise.all(assignPromises);
-        const successCount = results.filter(r => r.success).length;
+        console.log("Updating course with data:", updateRequest);
         
-        if (successCount > 0) {
-          toast.success(`Successfully assigned ${successCount} attendees from waitlist`);
-        }
+        // Update the course
+        await updateCourse({ 
+          trainingCenterId, 
+          courseId: existingCourse.id 
+        }, updateRequest);
         
-        const failureCount = results.length - successCount;
-        if (failureCount > 0) {
-          toast.error(`Failed to assign ${failureCount} attendees from waitlist`);
+        toast.success(`Course "${data.name}" has been updated`);
+      } else {
+        // Prepare create course request
+        const courseRequest: CreateCourseRequest = {
+          name: data.name,
+          description: data.description || "",
+          startDate: startDateFormatted,
+          endDate: endDateFormatted,
+          startTime: startTimeFormatted,
+          endTime: endTimeFormatted,
+          price: data.price,
+          currency: data.currency,
+          maxSeats: data.maxSeats,
+          templateId: template?.id || "",
+        };
+        
+        console.log("Creating course with data:", courseRequest);
+        
+        // Create the course
+        const createdCourse = await createCourse({ trainingCenterId }, courseRequest);
+        
+        // If there are selected waitlist attendees, assign them to the course
+        if (selectedWaitlistAttendees.length > 0) {
+          await Promise.all(
+            selectedWaitlistAttendees.map(async (attendeeId) => {
+              try {
+                // Assign attendee to course
+                await assignAttendeeToCourse({
+                  trainingCenterId,
+                  courseId: createdCourse.id,
+                  attendeeId,
+                });
+                
+                // Find the waitlist record for this attendee
+                const waitlistRecord = waitlistRecords.find(
+                  record => record.attendeeResponse.id === attendeeId
+                );
+                
+                // Delete the waitlist record
+                if (waitlistRecord) {
+                  await deleteWaitlistRecord({
+                    trainingCenterId,
+                    waitlistRecordId: waitlistRecord.id,
+                  });
+                }
+              } catch (error) {
+                console.error(`Error processing attendee ${attendeeId}:`, error);
+                // Continue with other attendees even if one fails
+              }
+            })
+          );
         }
       }
       
@@ -263,9 +293,13 @@ export function CourseSchedulingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Schedule New Course</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Edit Course' : 'Schedule New Course'}</DialogTitle>
           <DialogDescription>
-            Schedule a new course based on the "{template.name}" template.
+            {isEditMode 
+              ? `Edit course details for "${existingCourse?.name}".`
+              : template?.name 
+                ? `Create a new course based on the "${template.name}" template.` 
+                : 'Create a new course.'}
           </DialogDescription>
         </DialogHeader>
         
@@ -457,7 +491,9 @@ export function CourseSchedulingDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Scheduling..." : "Schedule Course"}
+                {isSubmitting 
+                  ? (isEditMode ? "Updating..." : "Scheduling...") 
+                  : (isEditMode ? "Update Course" : "Schedule Course")}
               </Button>
             </DialogFooter>
           </form>

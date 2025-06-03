@@ -9,7 +9,8 @@ import {
   ChevronRight,
   ChevronLeft,
   BookOpen,
-  ClipboardList
+  ClipboardList,
+  Calendar
 } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -22,6 +23,7 @@ const getMenuItems = (userType: string) => {
     { name: "Dashboard", icon: BarChart2, href: "/dashboard" },
     { name: "Attendees", icon: User, href: "/attendees" },
     { name: "Course Templates", icon: BookOpen, href: "/course-templates" },
+    { name: "Courses", icon: Calendar, href: "/courses" },
     { name: "Waitlist", icon: ClipboardList, href: "/waitlist" },
   ]
 

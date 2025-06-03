@@ -26,6 +26,7 @@ export interface Course extends CourseBase {
   trainingCenterId: string;
   status: "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   enrolledAttendees: number;
+  availableSeats: number;
   createdAt?: string;
   updatedAt?: string;
 }
