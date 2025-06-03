@@ -139,9 +139,11 @@ export function CourseSchedulingDialog({
         courseTemplateId: template.id
       });
       
-      // Filter to only show WAITING status records
-      const waitingRecords = records.filter(record => record.status === "WAITING");
-      setWaitlistRecords(waitingRecords);
+      // Filter to show both WAITING and CONFIRMED status records
+      const eligibleRecords = records.filter(record => 
+        record.status === "WAITING" || record.status === "CONFIRMED"
+      );
+      setWaitlistRecords(eligibleRecords);
     } catch (error) {
       console.error("Error fetching waitlist records:", error);
       toast.error("Failed to load waitlist records");

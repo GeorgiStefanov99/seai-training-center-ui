@@ -98,7 +98,7 @@ export default function Dashboard() {
   // Render loading skeleton
   if (isLoading) {
     return (
-      <PageLayout title="Dashboard" description="Training Center Overview">
+      <PageLayout title="Dashboard">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[...Array(4)].map((_, i) => (
             <Card key={i}>
@@ -173,7 +173,7 @@ export default function Dashboard() {
   }))
   
   return (
-    <PageLayout title="Dashboard" description="Training Center Overview">
+    <PageLayout title="Dashboard">
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {/* Total Attendees */}
@@ -292,8 +292,8 @@ export default function Dashboard() {
                         {record.status}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground">{record.templateName}</p>
-                    <p className="text-xs text-muted-foreground">Added on {formatDate(record.createdAt)}</p>
+                    <p className="text-xs text-muted-foreground">{record.courseTemplateId}</p>
+                    <p className="text-xs text-muted-foreground">Added on {formatDate(record.timestamp)}</p>
                   </div>
                 </div>
               ))}
