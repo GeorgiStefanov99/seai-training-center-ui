@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { PageLayout } from "@/components/page-layout"
 import { Button } from "@/components/ui/button"
@@ -54,7 +54,7 @@ import { RemarkDialog, DeleteRemarkDialog } from "@/components/dialogs/remark-di
 import { format } from "date-fns"
 import { WaitlistAddDialog } from "@/components/dialogs/waitlist-add-dialog"
 
-export default function WaitlistPage() {
+function WaitlistContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user } = useAuth()
@@ -543,5 +543,13 @@ export default function WaitlistPage() {
         {/* Delete Remark functionality has been removed */}
       </div>
     </PageLayout>
+  )
+}
+
+export default function WaitlistPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+      <WaitlistContent />
+    </Suspense>
   )
 }

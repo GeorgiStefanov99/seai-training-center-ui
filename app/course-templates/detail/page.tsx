@@ -1,6 +1,6 @@
 "use client"
 
-import React, { Fragment, useState, useEffect } from "react"
+import React, { Fragment, useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { PageLayout } from "@/components/page-layout"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -120,7 +120,7 @@ const MOCK_ACTIVE_COURSES: Record<string, ActiveCourse[]> = {
   ]
 }
 
-export default function CourseTemplateDetailPage() {
+function CourseTemplateDetailContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { user } = useAuth()
@@ -1137,5 +1137,13 @@ export default function CourseTemplateDetailPage() {
       
       {/* Note: Delete Remark Dialog removed as per requirements */}
     </PageLayout>
+  )
+}
+
+export default function CourseTemplateDetailPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+      <CourseTemplateDetailContent />
+    </Suspense>
   )
 }

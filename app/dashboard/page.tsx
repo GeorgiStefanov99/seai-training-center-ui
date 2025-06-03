@@ -140,7 +140,7 @@ export default function Dashboard() {
   // If no data is available
   if (!dashboardData) {
     return (
-      <PageLayout title="Dashboard" description="Training Center Overview">
+      <PageLayout title="Dashboard">
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="rounded-full bg-muted p-3 mb-4">
             <Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
@@ -293,7 +293,6 @@ export default function Dashboard() {
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{record.courseTemplateId}</p>
-                    <p className="text-xs text-muted-foreground">Added on {formatDate(record.timestamp)}</p>
                   </div>
                 </div>
               ))}
@@ -398,11 +397,11 @@ export default function Dashboard() {
                 </div>
                 <div className="flex flex-col sm:items-end gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{course.enrolledAttendees}/{course.maxSeats}</span>
+                    <span className="text-sm font-medium">{course.availableSeats}/{course.maxSeats}</span>
                     <span className="text-xs text-muted-foreground">seats filled</span>
                   </div>
                   <Progress 
-                    value={(course.enrolledAttendees / course.maxSeats) * 100} 
+                    value={(course.availableSeats / course.maxSeats) * 100} 
                     className="h-2 w-full sm:w-24" 
                   />
                 </div>
