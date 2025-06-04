@@ -27,8 +27,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DateFields } from "@/components/dialogs/date-fields"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { toast } from "sonner"
 import { createCourse, updateCourse } from "@/services/courseService"
 import { CourseTemplate, WaitlistRecord } from "@/types/course-template"
 import { CreateCourseRequest, Course, UpdateCourseRequest } from "@/types/course"
@@ -469,10 +470,15 @@ export function CourseSchedulingDialog({
                           >
                             <div className="flex justify-between items-center">
                               <span>{attendee.name} {attendee.surname}</span>
-                              <span className="text-xs text-muted-foreground">{attendee.rank}</span>
+                              <div className="flex items-center gap-2">
+                                <Badge className={record.status === "CONFIRMED" ? "bg-green-500 hover:bg-green-600" : ""} variant={record.status === "CONFIRMED" ? "default" : "outline"}>
+                                  {record.status}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">{attendee.rank}</span>
+                              </div>
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
-                              {attendee.email} • {attendee.telephone}
+                              {attendee.email} • {attendee.telephone || "N/A"}
                             </div>
                           </label>
                         </div>
