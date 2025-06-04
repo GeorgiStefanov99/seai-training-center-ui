@@ -29,14 +29,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/useAuth"
-import { Attendee } from "@/types/attendee"
-import { getAttendees } from "@/services/attendeeService"
+import { Attendee, AttendeeRank } from "@/types/attendee"
+import { getAttendees, createAttendee } from "@/services/attendeeService"
 import { assignAttendeeToCourse } from "@/services/courseAttendeeService"
-import { Loader2, Search } from "lucide-react"
+import { Loader2, Search, UserPlus, Users } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { AttendeeForm, AttendeeFormValues } from "@/components/forms/attendee-form"
 
 // Define the form schema
 const formSchema = z.object({
@@ -66,6 +68,9 @@ export function CourseAttendeeDialog({
   const [filteredAttendees, setFilteredAttendees] = useState<Attendee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<"existing" | "new">("existing");
+  const [isCreatingAttendee, setIsCreatingAttendee] = useState(false);
+  const [newAttendeeId, setNewAttendeeId] = useState<string | null>(null);
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || "";
@@ -117,7 +122,7 @@ export function CourseAttendeeDialog({
     }
   }, [searchQuery, attendees]);
 
-  // Handle form submission
+  // Handle form submission for existing attendee
   const onSubmit = async (data: FormValues) => {
     if (!trainingCenterId) {
       toast.error("Training center ID is required");
@@ -158,6 +163,53 @@ export function CourseAttendeeDialog({
       setIsSubmitting(false);
     }
   };
+  
+  // Handle new attendee submission
+  const handleNewAttendeeSubmit = async (attendeeData: AttendeeFormValues) => {
+    if (!trainingCenterId) {
+      toast.error("Training center ID is required");
+      return;
+    }
+
+    if (!courseId) {
+      toast.error("Course ID is required");
+      return;
+    }
+
+    setIsCreatingAttendee(true);
+
+    try {
+      // First create the attendee
+      const newAttendee = await createAttendee(
+        { trainingCenterId },
+        attendeeData
+      );
+      
+      // Then assign the new attendee to the course
+      await assignAttendeeToCourse({
+        trainingCenterId,
+        courseId,
+        attendeeId: newAttendee.id,
+      });
+      
+      toast.success("New attendee created and assigned to course successfully");
+      
+      // Call onSuccess and handle any errors that might occur
+      try {
+        await onSuccess();
+      } catch (successError) {
+        console.error("Error in onSuccess callback:", successError);
+      }
+      
+      // Ensure the dialog closes even if there was an error in onSuccess
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error creating and assigning new attendee:", error);
+      toast.error("Failed to create and assign new attendee. Please try again.");
+    } finally {
+      setIsCreatingAttendee(false);
+    }
+  };
 
   // Format rank for display
   const formatRank = (rank: string) => {
@@ -166,11 +218,11 @@ export function CourseAttendeeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Assign Attendee to Course</DialogTitle>
           <DialogDescription>
-            Select an attendee to assign to this course.
+            Select an existing attendee or create a new one to assign to this course.
           </DialogDescription>
         </DialogHeader>
         
@@ -179,72 +231,111 @@ export function CourseAttendeeDialog({
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Search input */}
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search attendees..."
-                  className="pl-9"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "existing" | "new")} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="existing" className="flex items-center">
+                <Users className="mr-2 h-4 w-4" />
+                Existing Attendee
+              </TabsTrigger>
+              <TabsTrigger value="new" className="flex items-center">
+                <UserPlus className="mr-2 h-4 w-4" />
+                New Attendee
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="existing" className="space-y-4 pt-4">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  {/* Search input */}
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search attendees..."
+                      className="pl-9"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  
+                  <FormField
+                    control={form.control}
+                    name="attendeeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Attendee</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select an attendee" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <ScrollArea className="h-72">
+                              {filteredAttendees.length > 0 ? (
+                                filteredAttendees.map((attendee) => (
+                                  <SelectItem key={attendee.id} value={attendee.id}>
+                                    {`${attendee.name} ${attendee.surname} (${attendee.email}) - ${formatRank(attendee.rank)}`}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <div className="p-2 text-center text-sm text-muted-foreground">
+                                  No attendees found
+                                </div>
+                              )}
+                            </ScrollArea>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          The attendee to assign to this course
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                          Assigning...
+                        </>
+                      ) : (
+                        "Assign Attendee"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </TabsContent>
+            
+            <TabsContent value="new" className="space-y-4 pt-4">
+              <div className="bg-muted/50 p-4 rounded-md mb-4">
+                <h3 className="text-sm font-medium">Create New Attendee</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Fill in the details to create a new attendee and assign them to this course.
+                </p>
               </div>
               
-              <FormField
-                control={form.control}
-                name="attendeeId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Attendee</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an attendee" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <ScrollArea className="h-72">
-                          {filteredAttendees.length > 0 ? (
-                            filteredAttendees.map((attendee) => (
-                              <SelectItem key={attendee.id} value={attendee.id}>
-                                {`${attendee.name} ${attendee.surname} (${attendee.email}) - ${formatRank(attendee.rank)}`}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <div className="p-2 text-center text-sm text-muted-foreground">
-                              No attendees found
-                            </div>
-                          )}
-                        </ScrollArea>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      The attendee to assign to this course
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              <AttendeeForm
+                defaultValues={{
+                  name: "",
+                  surname: "",
+                  email: "",
+                  telephone: "",
+                  rank: "PRIVATE" as AttendeeRank,
+                  remark: ""
+                }}
+                onSubmit={handleNewAttendeeSubmit}
+                onCancel={() => setActiveTab("existing")}
+                isSubmitting={isCreatingAttendee}
+                showRemark={true}
               />
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
-                      Assigning...
-                    </>
-                  ) : (
-                    "Assign Attendee"
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+            </TabsContent>
+          </Tabs>
         )}
       </DialogContent>
     </Dialog>
