@@ -30,7 +30,8 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { getWaitlistRecords, deleteWaitlistRecord } from "@/services/waitlistService"
-import { WaitlistRecord } from "@/types/course-template"
+import { getCourseTemplateById } from "@/services/courseTemplateService"
+import { WaitlistRecord, CourseTemplate } from "@/types/course-template"
 import { toast } from "sonner"
 import { DeleteConfirmationDialog } from "@/components/dialogs/delete-confirmation-dialog"
 import { WaitlistEditDialog } from "@/components/dialogs/waitlist-edit-dialog"
@@ -64,6 +65,9 @@ function WaitlistContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
+  const [templateFilter, setTemplateFilter] = useState<string>("ALL")
+  const [courseTemplates, setCourseTemplates] = useState<Record<string, CourseTemplate>>({}) // Map of template ID to template
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
   // Dialog states
@@ -116,6 +120,8 @@ function WaitlistContent() {
       // After fetching waitlist records, fetch remarks for each attendee
       if (data.length > 0) {
         await fetchAllWaitlistRemarks(data)
+        // Also fetch course templates for all records
+        await fetchAllCourseTemplates(data)
       }
     } catch (err) {
       console.error("Error fetching waitlist records:", err)
@@ -125,29 +131,86 @@ function WaitlistContent() {
     }
   }
   
+  // Fetch course template details for a specific template ID
+  const fetchCourseTemplateDetails = async (templateId: string) => {
+    if (!trainingCenterId || !templateId) return null;
+    
+    try {
+      // Check if we already have this template in state
+      if (courseTemplates[templateId]) {
+        return courseTemplates[templateId];
+      }
+      
+      const template = await getCourseTemplateById({ 
+        trainingCenterId, 
+        courseTemplateId: templateId 
+      });
+      
+      // Update the templates state
+      setCourseTemplates(prev => ({
+        ...prev,
+        [templateId]: template
+      }));
+      
+      return template;
+    } catch (error) {
+      console.error(`Error fetching template ${templateId}:`, error);
+      return null;
+    }
+  };
+  
+  // Fetch course templates for all waitlist records
+  const fetchAllCourseTemplates = async (records: WaitlistRecord[]) => {
+    if (!trainingCenterId || records.length === 0) return;
+    
+    setIsLoadingTemplates(true);
+    
+    try {
+      // Get unique template IDs
+      const templateIds = Array.from(new Set(
+        records
+          .map(record => record.courseTemplateId || record.templateId)
+          .filter(Boolean) as string[]
+      ));
+      
+      // Fetch each template in parallel
+      await Promise.all(templateIds.map(fetchCourseTemplateDetails));
+    } catch (error) {
+      console.error("Error fetching course templates:", error);
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
+  
   // Load waitlist records on component mount
   useEffect(() => {
     fetchWaitlistRecords()
   }, [trainingCenterId])
   
-  // Filter records when search query or status filter changes
+  // Filter records when search query, status filter, or template filter changes
   useEffect(() => {
     const filteredRecords = waitlistRecords.filter(record => {
       const fullName = `${record.attendeeResponse.name} ${record.attendeeResponse.surname}`.toLowerCase();
       const email = record.attendeeResponse.email.toLowerCase();
       const rank = record.attendeeResponse.rank.toLowerCase();
       const query = searchQuery.toLowerCase();
+      const templateId = record.courseTemplateId || record.templateId;
       
       // Apply status filter
       if (statusFilter !== "ALL" && record.status !== statusFilter) {
         return false;
       }
       
+      // Apply template filter
+      if (templateFilter !== "ALL" && templateId !== templateFilter) {
+        return false;
+      }
+      
       return fullName.includes(query) || email.includes(query) || rank.includes(query);
     });
     
-    setFilteredRecords(filteredRecords)
-  }, [searchQuery, statusFilter, waitlistRecords])
+    setFilteredRecords(filteredRecords);
+  }, [waitlistRecords, searchQuery, statusFilter, templateFilter])
   
   // Handle record deletion
   const handleDeleteRecord = (record: WaitlistRecord) => {
@@ -319,6 +382,20 @@ function WaitlistContent() {
                   <SelectItem value="DELETED">Deleted</SelectItem>
                 </SelectContent>
               </Select>
+              
+              <Select value={templateFilter} onValueChange={setTemplateFilter}>
+                <SelectTrigger className="h-9 w-[180px]">
+                  <SelectValue placeholder="Filter by course" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Courses</SelectItem>
+                  {Object.entries(courseTemplates).map(([id, template]) => (
+                    <SelectItem key={id} value={id}>
+                      {template.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <Button onClick={() => setCreateDialogOpen(true)} className="w-full sm:w-auto">
@@ -367,7 +444,9 @@ function WaitlistContent() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Telephone</TableHead>
                       <TableHead>Rank</TableHead>
+                      <TableHead>Course</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -380,8 +459,23 @@ function WaitlistContent() {
                             {record.attendeeResponse.name} {record.attendeeResponse.surname}
                           </TableCell>
                           <TableCell>{record.attendeeResponse.email}</TableCell>
+                          <TableCell>{record.attendeeResponse.telephone || "N/A"}</TableCell>
                           <TableCell>
                             {record.attendeeResponse.rank.replace(/_/g, " ")}
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              const templateId = record.courseTemplateId || record.templateId;
+                              const template = templateId ? courseTemplates[templateId] : null;
+                              return template ? (
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{template.name}</span>
+                                  <span className="text-xs text-muted-foreground">{template.description?.substring(0, 30)}{template.description?.length > 30 ? '...' : ''}</span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Loading...</span>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell>
                             <Badge variant={getStatusBadgeVariant(record.status)}>
