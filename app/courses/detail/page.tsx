@@ -327,7 +327,7 @@ export default function CourseDetailPage() {
                     
                     <div className="flex items-center text-muted-foreground">
                       <Users className="mr-2 h-4 w-4" />
-                      {course.enrolledAttendees} / {course.maxSeats} seats
+                      {course.maxSeats - course.availableSeats} / {course.maxSeats} seats
                     </div>
                   </div>
                   
@@ -391,9 +391,9 @@ export default function CourseDetailPage() {
                       <div className="bg-primary/5 p-4 rounded-lg flex items-center gap-3">
                         <Users className="h-5 w-5 text-primary" />
                         <div>
-                          <h3 className="text-sm font-medium text-muted-foreground">Capacity</h3>
-                          <p className="text-xl font-bold">{course.enrolledAttendees} / {course.maxSeats}</p>
-                          <p className="text-xs text-muted-foreground">{course.availableSeats} seats available</p>
+                          <h3 className="text-sm font-medium text-muted-foreground">Enrolled</h3>
+                          <p className="text-xl font-bold">{course.maxSeats - course.availableSeats} / {course.maxSeats}</p>
+                          <p className="text-xs text-muted-foreground">{course.availableSeats} seats remaining</p>
                         </div>
                       </div>
                     </div>

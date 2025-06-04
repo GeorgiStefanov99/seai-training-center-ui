@@ -777,7 +777,7 @@ function CourseTemplateDetailContent() {
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Users className="h-3 w-3" />
-                              <span>{course.availableSeats} / {course.maxSeats}</span>
+                              <span>{course.maxSeats - course.availableSeats} / {course.maxSeats}</span>
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
