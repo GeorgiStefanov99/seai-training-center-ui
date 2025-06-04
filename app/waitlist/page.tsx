@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
   TableBody,
@@ -26,10 +27,15 @@ import {
   MoreHorizontal,
   MessageSquare,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ArrowRightCircle,
+  ArrowLeftCircle,
+  CheckCircle2,
+  Clock,
+  ClipboardList
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
-import { getWaitlistRecords, deleteWaitlistRecord } from "@/services/waitlistService"
+import { getWaitlistRecords, deleteWaitlistRecord, updateWaitlistRecord } from "@/services/waitlistService"
 import { getCourseTemplateById } from "@/services/courseTemplateService"
 import { WaitlistRecord, CourseTemplate } from "@/types/course-template"
 import { toast } from "sonner"
@@ -75,6 +81,7 @@ function WaitlistContent() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedRecord, setSelectedRecord] = useState<WaitlistRecord | null>(null)
+  const [updatingWaitlistRecordId, setUpdatingWaitlistRecordId] = useState<string | null>(null)
   
   // Remark states
   const [waitlistRemarks, setWaitlistRemarks] = useState<Record<string, Remark[]>>({}) 
@@ -251,6 +258,41 @@ function WaitlistContent() {
     }, 10)
   }
   
+  // Handle updating waitlist record status
+  const handleUpdateWaitlistStatus = async (record: WaitlistRecord, newStatus: "WAITING" | "CONFIRMED") => {
+    if (!trainingCenterId || !record.id) return
+    
+    try {
+      setUpdatingWaitlistRecordId(record.id)
+      
+      // Prepare the update data
+      const updateData = {
+        status: newStatus
+      }
+      
+      // Call the API to update the waitlist record
+      await updateWaitlistRecord(
+        { trainingCenterId, waitlistRecordId: record.id },
+        updateData
+      )
+      
+      // Update the local state
+      setWaitlistRecords(prev => 
+        prev.map(item => 
+          item.id === record.id ? { ...item, status: newStatus } : item
+        )
+      )
+      
+      // Show success message
+      toast.success(`Waitlist record ${newStatus === "CONFIRMED" ? "confirmed" : "returned to waiting"} successfully`)
+    } catch (error) {
+      console.error(`Error updating waitlist record status:`, error)
+      toast.error(`Failed to update waitlist record status`)
+    } finally {
+      setUpdatingWaitlistRecordId(null)
+    }
+  }
+  
   // Handle view record details
   const handleViewRecord = (record: WaitlistRecord) => {
     router.push(`/course-templates/detail?id=${record.templateId}`)
@@ -410,7 +452,7 @@ function WaitlistContent() {
               View and manage all waitlist records across all course templates
             </CardDescription>
             
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+            <div className="flex flex-col space-y-4 pt-4">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -420,6 +462,25 @@ function WaitlistContent() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
+              </div>
+              
+              <div className="flex">
+                <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full">
+                  <TabsList className="grid w-full grid-cols-3 max-w-md">
+                    <TabsTrigger value="ALL" className="flex items-center gap-2">
+                      <ClipboardList className="h-4 w-4" />
+                      All
+                    </TabsTrigger>
+                    <TabsTrigger value="WAITING" className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Waiting
+                    </TabsTrigger>
+                    <TabsTrigger value="CONFIRMED" className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Confirmed
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
             </div>
           </CardHeader>
@@ -484,6 +545,37 @@ function WaitlistContent() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end space-x-2">
+                              {/* Status update buttons */}
+                              {record.status === "WAITING" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleUpdateWaitlistStatus(record, "CONFIRMED")}
+                                  title="Confirm Waitlist Record"
+                                  disabled={updatingWaitlistRecordId === record.id}
+                                >
+                                  {updatingWaitlistRecordId === record.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <ArrowRightCircle className="h-4 w-4 text-green-500" />
+                                  )}
+                                </Button>
+                              )}
+                              {record.status === "CONFIRMED" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleUpdateWaitlistStatus(record, "WAITING")}
+                                  title="Return to Waiting"
+                                  disabled={updatingWaitlistRecordId === record.id}
+                                >
+                                  {updatingWaitlistRecordId === record.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <ArrowLeftCircle className="h-4 w-4 text-amber-500" />
+                                  )}
+                                </Button>
+                              )}
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
