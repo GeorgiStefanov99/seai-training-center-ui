@@ -308,7 +308,11 @@ export default function CoursesPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredCourses.map((course) => (
-                      <TableRow key={course.id}>
+                      <TableRow 
+                        key={course.id} 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => router.push(`/courses/detail?id=${course.id}`)}
+                      >
                         <TableCell className="font-medium">{course.name}</TableCell>
                         <TableCell>{formatDate(course.startDate)}</TableCell>
                         <TableCell>{formatTime(course.startTime)}</TableCell>
@@ -330,7 +334,10 @@ export default function CoursesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleEditCourse(course)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditCourse(course);
+                              }}
                               title="Edit Course"
                             >
                               <Edit className="h-4 w-4" />
@@ -338,7 +345,10 @@ export default function CoursesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleManageAttendees(course)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleManageAttendees(course);
+                              }}
                               title="Assign Seafarer"
                             >
                               <UserPlus className="h-4 w-4" />
@@ -346,7 +356,10 @@ export default function CoursesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDeleteCourse(course)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteCourse(course);
+                              }}
                               title="Delete Course"
                               className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
                             >

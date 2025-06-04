@@ -722,7 +722,11 @@ function CourseTemplateDetailContent() {
                     </TableHeader>
                     <TableBody>
                       {activeCourses.map((course) => (
-                        <TableRow key={course.id}>
+                        <TableRow 
+                          key={course.id} 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => router.push(`/courses/detail?id=${course.id}`)}
+                        >
                           <TableCell className="font-medium">{course.name}</TableCell>
                           <TableCell>{formatDate(course.startDate)}</TableCell>
                           <TableCell>{formatLocalTime(course.startTime)}</TableCell>
@@ -744,7 +748,10 @@ function CourseTemplateDetailContent() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => handleEditCourse(course)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditCourse(course);
+                                }}
                                 title="Edit Course"
                               >
                                 <Edit className="h-4 w-4" />
@@ -752,7 +759,10 @@ function CourseTemplateDetailContent() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => handleManageAttendees(course)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleManageAttendees(course);
+                                }}
                                 title="Manage Course Attendees"
                               >
                                 <UserPlus className="h-4 w-4" />
@@ -760,7 +770,10 @@ function CourseTemplateDetailContent() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => handleDeleteCourse(course)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteCourse(course);
+                                }}
                                 title="Delete Course"
                                 className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
                               >
