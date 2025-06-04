@@ -840,6 +840,7 @@ function CourseTemplateDetailContent() {
                         <TableRow>
                           <TableHead>Name</TableHead>
                           <TableHead>Email</TableHead>
+                          <TableHead>Telephone</TableHead>
                           <TableHead>Rank</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
@@ -860,6 +861,7 @@ function CourseTemplateDetailContent() {
                                   {attendeeName}
                                 </TableCell>
                                 <TableCell>{record.attendeeResponse.email}</TableCell>
+                                <TableCell>{record.attendeeResponse.telephone || "N/A"}</TableCell>
                                 <TableCell>
                                   {record.attendeeResponse.rank.replace(/_/g, " ")}
                                 </TableCell>
