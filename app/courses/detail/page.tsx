@@ -33,6 +33,7 @@ import { format, parse } from "date-fns"
 import { CourseSchedulingDialog } from "@/components/dialogs/course-scheduling-dialog"
 import { CourseAttendeesManagementDialog } from "@/components/dialogs/course-attendees-management-dialog"
 import { CourseAttendeeDialog } from "@/components/dialogs/course-attendee-dialog"
+import { RemarkDialog } from "@/components/dialogs/remark-dialog"
 import { 
   Table,
   TableBody,
@@ -223,6 +224,8 @@ export default function CourseDetailPage() {
     setSelectedAttendee(attendee)
     setReturnToWaitlistDialogOpen(true)
   }
+  
+  // This is a duplicate function and has been removed
   
   // Handle returning an attendee to the waitlist after confirmation
   const handleReturnToWaitlist = async () => {
@@ -608,6 +611,21 @@ export default function CourseDetailPage() {
           description={`Are you sure you want to return ${selectedAttendee?.name} ${selectedAttendee?.surname} to the waitlist? They will be removed from this course.`}
           onConfirm={handleReturnToWaitlist}
         />
+        
+        {/* Attendee Remarks Dialog */}
+        {selectedAttendee && (
+          <RemarkDialog
+            open={remarksDialogOpen}
+            onOpenChange={setRemarksDialogOpen}
+            mode="create"
+            attendeeId={selectedAttendee.id}
+            onSuccess={() => {
+              // Refresh data if needed after adding remarks
+              setRemarksDialogOpen(false)
+              setSelectedAttendee(null)
+            }}
+          />
+        )}
       </div>
     </PageLayout>
   )
