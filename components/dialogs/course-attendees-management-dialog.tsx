@@ -34,6 +34,7 @@ interface CourseAttendeesManagementDialogProps {
   onOpenChange: (open: boolean) => void;
   courseId: string;
   courseName: string;
+  templateId?: string; // Optional template ID for waitlist records
   refreshData?: () => Promise<void>;
 }
 
@@ -42,6 +43,7 @@ export function CourseAttendeesManagementDialog({
   onOpenChange,
   courseId,
   courseName,
+  templateId,
   refreshData
 }: CourseAttendeesManagementDialogProps) {
   const { user } = useAuth();
@@ -253,6 +255,7 @@ export function CourseAttendeesManagementDialog({
         open={assignDialogOpen}
         onOpenChange={setAssignDialogOpen}
         courseId={courseId}
+        templateId={templateId}
         onSuccess={async () => {
           await fetchAttendees();
           

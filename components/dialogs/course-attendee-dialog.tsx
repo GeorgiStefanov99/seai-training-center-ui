@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -33,8 +33,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/useAuth"
 import { Attendee, AttendeeRank } from "@/types/attendee"
+import { WaitlistRecord, WaitlistAttendeeResponse } from "@/types/course-template"
 import { getAttendees, createAttendee } from "@/services/attendeeService"
 import { assignAttendeeToCourse } from "@/services/courseAttendeeService"
+import { getWaitlistRecordsByTemplate, deleteWaitlistRecord } from "@/services/waitlistService"
 import { Loader2, Search, UserPlus, Users } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -53,6 +55,7 @@ interface CourseAttendeeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   courseId: string;
+  templateId?: string; // Optional template ID for fetching waitlist records
   onSuccess: () => void;
 }
 
@@ -60,15 +63,19 @@ export function CourseAttendeeDialog({
   open,
   onOpenChange,
   courseId,
+  templateId,
   onSuccess
 }: CourseAttendeeDialogProps) {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [filteredAttendees, setFilteredAttendees] = useState<Attendee[]>([]);
+  const [waitlistRecords, setWaitlistRecords] = useState<WaitlistRecord[]>([]);
+  const [waitlistSearchQuery, setWaitlistSearchQuery] = useState("");
+  const [selectedWaitlistRecord, setSelectedWaitlistRecord] = useState<WaitlistRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"existing" | "new">("existing");
+  const [activeTab, setActiveTab] = useState<"existing" | "new" | "waitlist">("existing");
   const [isCreatingAttendee, setIsCreatingAttendee] = useState(false);
   const [newAttendeeId, setNewAttendeeId] = useState<string | null>(null);
   
@@ -102,8 +109,29 @@ export function CourseAttendeeDialog({
       };
       
       fetchAttendees();
+      
+      // Fetch waitlist records if templateId is provided
+      if (templateId) {
+        fetchWaitlistRecords();
+      }
     }
-  }, [open, trainingCenterId]);
+  }, [open, trainingCenterId, templateId]);
+  
+  // Function to fetch waitlist records for the specific template
+  const fetchWaitlistRecords = async () => {
+    if (!templateId || !trainingCenterId) return;
+    
+    try {
+      const records = await getWaitlistRecordsByTemplate({
+        trainingCenterId,
+        courseTemplateId: templateId
+      });
+      setWaitlistRecords(records);
+    } catch (error) {
+      console.error("Error fetching waitlist records:", error);
+      toast.error("Failed to load waitlist records. Please try again.");
+    }
+  };
 
   // Filter attendees based on search query
   useEffect(() => {
@@ -121,35 +149,64 @@ export function CourseAttendeeDialog({
       setFilteredAttendees(filtered);
     }
   }, [searchQuery, attendees]);
+  
+  // Filter waitlist records based on search query
+  const filteredWaitlistRecords = useMemo(() => {
+    if (!waitlistSearchQuery) return waitlistRecords;
+    
+    const query = waitlistSearchQuery.toLowerCase();
+    return waitlistRecords.filter(record => {
+      const { name, surname, email } = record.attendeeResponse;
+      return (
+        name.toLowerCase().includes(query) ||
+        surname.toLowerCase().includes(query) ||
+        email.toLowerCase().includes(query)
+      );
+    });
+  }, [waitlistRecords, waitlistSearchQuery]);
+  
+  // Find waitlist record by attendee ID
+  const findWaitlistRecordByAttendeeId = (attendeeId: string): WaitlistRecord | undefined => {
+    return waitlistRecords.find(record => record.attendeeResponse.id === attendeeId);
+  };
 
   // Handle form submission for existing attendee
   const onSubmit = async (data: FormValues) => {
-    if (!trainingCenterId) {
-      toast.error("Training center ID is required");
-      return;
-    }
-
-    if (!courseId) {
-      toast.error("Course ID is required");
-      return;
-    }
-
-    setIsSubmitting(true);
-
     try {
+      setIsSubmitting(true);
+      
+      // Assign the selected attendee to the course
       await assignAttendeeToCourse({
-        trainingCenterId,
+        trainingCenterId: user?.userId || "",
         courseId,
         attendeeId: data.attendeeId,
       });
       
-      toast.success("Attendee assigned to course successfully");
-      form.reset();
-      setSearchQuery("");
+      // If assigning from waitlist, remove the waitlist record
+      if (activeTab === "waitlist" && user?.userId) {
+        // Find the waitlist record for this attendee
+        const waitlistRecord = findWaitlistRecordByAttendeeId(data.attendeeId);
+        
+        if (waitlistRecord) {
+          try {
+            await deleteWaitlistRecord({
+              trainingCenterId: user.userId,
+              waitlistRecordId: waitlistRecord.id
+            });
+            toast.success("Attendee assigned to course and removed from waitlist successfully.");
+          } catch (waitlistError) {
+            console.error("Error removing from waitlist:", waitlistError);
+            toast.error("Attendee was assigned to course but could not be removed from waitlist.");
+          }
+        } else {
+          toast.success("Attendee assigned to course successfully.");
+        }
+      } else {
+        toast.success("Attendee assigned to course successfully.");
+      }
       
-      // Call onSuccess and handle any errors that might occur
       try {
-        await onSuccess();
+        onSuccess();
       } catch (successError) {
         console.error("Error in onSuccess callback:", successError);
       }
@@ -231,8 +288,8 @@ export function CourseAttendeeDialog({
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "existing" | "new")} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "existing" | "new" | "waitlist")} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="existing" className="flex items-center">
                 <Users className="mr-2 h-4 w-4" />
                 Existing Attendee
@@ -240,6 +297,10 @@ export function CourseAttendeeDialog({
               <TabsTrigger value="new" className="flex items-center">
                 <UserPlus className="mr-2 h-4 w-4" />
                 New Attendee
+              </TabsTrigger>
+              <TabsTrigger value="waitlist" className="flex items-center">
+                <Users className="mr-2 h-4 w-4" />
+                From Waitlist
               </TabsTrigger>
             </TabsList>
             
@@ -270,7 +331,7 @@ export function CourseAttendeeDialog({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <ScrollArea className="h-72">
+                            <ScrollArea className={`${filteredAttendees.length > 5 ? 'h-72' : 'max-h-72'}`}>
                               {filteredAttendees.length > 0 ? (
                                 filteredAttendees.map((attendee) => (
                                   <SelectItem key={attendee.id} value={attendee.id}>
@@ -334,6 +395,98 @@ export function CourseAttendeeDialog({
                 isSubmitting={isCreatingAttendee}
                 showRemark={true}
               />
+            </TabsContent>
+            
+            <TabsContent value="waitlist" className="space-y-4 pt-4">
+              <div className="bg-muted/50 p-4 rounded-md mb-4">
+                <h3 className="text-sm font-medium">Select from Waitlist</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Assign an attendee from the course waitlist to this course.
+                </p>
+              </div>
+              
+              {!templateId ? (
+                <div className="p-4 text-center text-sm text-muted-foreground border rounded-md">
+                  No template ID provided. Waitlist records cannot be displayed.
+                </div>
+              ) : (
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    {/* Search input */}
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search waitlist..."
+                        className="pl-9"
+                        value={waitlistSearchQuery}
+                        onChange={(e) => setWaitlistSearchQuery(e.target.value)}
+                      />
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="attendeeId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Waitlisted Attendee</FormLabel>
+                          <Select 
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              // Store the selected waitlist record
+                              const record = findWaitlistRecordByAttendeeId(value);
+                              if (record) {
+                                setSelectedWaitlistRecord(record);
+                              }
+                            }} 
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select from waitlist" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <ScrollArea className={`${filteredWaitlistRecords.length > 5 ? 'h-72' : 'max-h-72'}`}>
+                                {filteredWaitlistRecords.length > 0 ? (
+                                  filteredWaitlistRecords.map((record: WaitlistRecord) => (
+                                    <SelectItem key={record.attendeeResponse.id} value={record.attendeeResponse.id}>
+                                      {`${record.attendeeResponse.name} ${record.attendeeResponse.surname} (${record.attendeeResponse.email}) - ${formatRank(record.attendeeResponse.rank)}`}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <div className="p-2 text-center text-sm text-muted-foreground">
+                                    No waitlisted attendees found
+                                  </div>
+                                )}
+                              </ScrollArea>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            The waitlisted attendee to assign to this course
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                            Assigning...
+                          </>
+                        ) : (
+                          "Assign from Waitlist"
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              )}
             </TabsContent>
           </Tabs>
         )}

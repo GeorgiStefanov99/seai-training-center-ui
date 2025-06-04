@@ -1054,6 +1054,7 @@ function CourseTemplateDetailContent() {
           onOpenChange={setCourseAttendeesDialogOpen}
           courseId={selectedCourseForAttendees.id}
           courseName={selectedCourseForAttendees.name}
+          templateId={templateId || undefined}
           refreshData={refreshActiveCourses}
         />
       )}
