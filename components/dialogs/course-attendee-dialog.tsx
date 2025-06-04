@@ -40,6 +40,7 @@ import { getWaitlistRecordsByTemplate, deleteWaitlistRecord } from "@/services/w
 import { Loader2, Search, UserPlus, Users } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Badge } from "@/components/ui/badge"
 import { AttendeeForm, AttendeeFormValues } from "@/components/forms/attendee-form"
 
 // Define the form schema
@@ -449,8 +450,13 @@ export function CourseAttendeeDialog({
                               <ScrollArea className={`${filteredWaitlistRecords.length > 5 ? 'h-72' : 'max-h-72'}`}>
                                 {filteredWaitlistRecords.length > 0 ? (
                                   filteredWaitlistRecords.map((record: WaitlistRecord) => (
-                                    <SelectItem key={record.attendeeResponse.id} value={record.attendeeResponse.id}>
-                                      {`${record.attendeeResponse.name} ${record.attendeeResponse.surname} (${record.attendeeResponse.email}) - ${formatRank(record.attendeeResponse.rank)}`}
+                                    <SelectItem key={record.attendeeResponse.id} value={record.attendeeResponse.id} className="flex items-center justify-between">
+                                      <div className="flex items-center justify-between w-full pr-2">
+                                        <span>{`${record.attendeeResponse.name} ${record.attendeeResponse.surname} (${record.attendeeResponse.email}) - ${formatRank(record.attendeeResponse.rank)}`}</span>
+                                        <Badge className={record.status === "CONFIRMED" ? "bg-green-500 hover:bg-green-600 ml-2" : "ml-2"} variant={record.status === "CONFIRMED" ? "default" : "outline"}>
+                                          {record.status}
+                                        </Badge>
+                                      </div>
                                     </SelectItem>
                                   ))
                                 ) : (
