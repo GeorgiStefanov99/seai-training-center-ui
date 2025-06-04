@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { PageLayout } from "@/components/page-layout"
 import { Button } from "@/components/ui/button"
@@ -43,7 +43,20 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-export default function CourseDetailPage() {
+// Loading fallback component
+function CourseDetailLoading() {
+  return (
+    <PageLayout>
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading course details...</span>
+      </div>
+    </PageLayout>
+  );
+}
+
+// Main component content
+function CourseDetailContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const courseId = searchParams.get("id")
@@ -628,5 +641,14 @@ export default function CourseDetailPage() {
         )}
       </div>
     </PageLayout>
+  )
+}
+
+// Export the main component wrapped with Suspense
+export default function CourseDetailPage() {
+  return (
+    <Suspense fallback={<CourseDetailLoading />}>
+      <CourseDetailContent />
+    </Suspense>
   )
 }
