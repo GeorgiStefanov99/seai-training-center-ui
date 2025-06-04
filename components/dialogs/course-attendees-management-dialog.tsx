@@ -14,7 +14,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/hooks/useAuth"
 import { Attendee } from "@/types/attendee"
 import { getCourseAttendees, removeAttendeeFromCourse } from "@/services/courseAttendeeService"
-import { Loader2, Search, UserPlus, X } from "lucide-react"
+import { Loader2, Search, UserPlus, X, MessageSquare, ClipboardList, UserMinus } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -27,6 +27,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { CourseAttendeeDialog } from "./course-attendee-dialog"
 import { DeleteConfirmationDialog } from "./delete-confirmation-dialog"
+import { RemarkDialog } from "./remark-dialog"
+import { createWaitlistRecordForAttendee } from "@/services/waitlistService"
 
 // Define the component props
 interface CourseAttendeesManagementDialogProps {
@@ -53,7 +55,10 @@ export function CourseAttendeesManagementDialog({
   const [searchQuery, setSearchQuery] = useState("");
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [returnToWaitlistDialogOpen, setReturnToWaitlistDialogOpen] = useState(false);
+  const [remarksDialogOpen, setRemarksDialogOpen] = useState(false);
   const [selectedAttendee, setSelectedAttendee] = useState<Attendee | null>(null);
+  const [processingAttendeeId, setProcessingAttendeeId] = useState<string | null>(null);
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || "";
@@ -107,14 +112,26 @@ export function CourseAttendeesManagementDialog({
     setAssignDialogOpen(true);
   };
 
-  // Handle removing an attendee
-  const handleRemoveAttendee = (attendee: Attendee) => {
+  // Prompt for removing an attendee
+  const promptRemoveAttendee = (attendee: Attendee) => {
     setSelectedAttendee(attendee);
     setDeleteDialogOpen(true);
   };
+  
+  // Handle adding remarks for an attendee
+  const handleAddRemarks = (attendee: Attendee) => {
+    setSelectedAttendee(attendee);
+    setRemarksDialogOpen(true);
+  };
+  
+  // Prompt for returning an attendee to the waitlist
+  const promptReturnToWaitlist = (attendee: Attendee) => {
+    setSelectedAttendee(attendee);
+    setReturnToWaitlistDialogOpen(true);
+  };
 
-  // Confirm attendee removal
-  const confirmRemoveAttendee = async () => {
+  // Handle removing an attendee from the course after confirmation
+  const handleRemoveAttendee = async () => {
     if (!selectedAttendee || !trainingCenterId || !courseId) {
       setDeleteDialogOpen(false);
       setSelectedAttendee(null);
@@ -122,6 +139,7 @@ export function CourseAttendeesManagementDialog({
     }
     
     try {
+      setProcessingAttendeeId(selectedAttendee.id);
       await removeAttendeeFromCourse({
         trainingCenterId,
         courseId,
@@ -149,8 +167,47 @@ export function CourseAttendeesManagementDialog({
       console.error("Error removing attendee from course:", error);
       toast.error("Failed to remove attendee from course. Please try again.");
     } finally {
-      // Always ensure the delete dialog is closed and selected attendee is reset
+      setProcessingAttendeeId(null);
       setDeleteDialogOpen(false);
+      setSelectedAttendee(null);
+    }
+  };
+  
+  // Handle returning an attendee to the waitlist after confirmation
+  const handleReturnToWaitlist = async () => {
+    if (!trainingCenterId || !courseId || !templateId || !selectedAttendee?.id) {
+      setReturnToWaitlistDialogOpen(false);
+      return;
+    }
+    
+    try {
+      setProcessingAttendeeId(selectedAttendee.id);
+      
+      // First create a waitlist record for the attendee
+      await createWaitlistRecordForAttendee({
+        trainingCenterId,
+        attendeeId: selectedAttendee.id,
+        courseTemplateId: templateId
+      }, { status: "WAITING" }); // Default status is WAITING
+      
+      // Then remove the attendee from the course
+      await removeAttendeeFromCourse({ trainingCenterId, courseId, attendeeId: selectedAttendee.id });
+      
+      toast.success(`${selectedAttendee.name} ${selectedAttendee.surname} returned to waitlist successfully`);
+      
+      // Fetch updated attendees list
+      await fetchAttendees();
+      
+      // Refresh parent data if needed
+      if (refreshData) {
+        await refreshData();
+      }
+    } catch (error) {
+      console.error("Error returning attendee to waitlist:", error);
+      toast.error("Failed to return attendee to waitlist. Please try again.");
+    } finally {
+      setProcessingAttendeeId(null);
+      setReturnToWaitlistDialogOpen(false);
       setSelectedAttendee(null);
     }
   };
@@ -211,14 +268,36 @@ export function CourseAttendeesManagementDialog({
                         </TableCell>
                         <TableCell>{attendee.email}</TableCell>
                         <TableCell>{formatRank(attendee.rank)}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemoveAttendee(attendee)}
-                            className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                        <TableCell className="text-right space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            onClick={() => handleAddRemarks(attendee)}
+                            title="Add Remarks"
                           >
-                            <X className="h-4 w-4" />
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => promptReturnToWaitlist(attendee)}
+                            disabled={processingAttendeeId === attendee.id || !templateId}
+                            title="Return to Waitlist"
+                          >
+                            {processingAttendeeId === attendee.id ? 
+                              <Loader2 className="h-4 w-4 animate-spin" /> : 
+                              <ClipboardList className="h-4 w-4" />}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => promptRemoveAttendee(attendee)}
+                            disabled={processingAttendeeId === attendee.id}
+                            title="Remove from Course"
+                          >
+                            {processingAttendeeId === attendee.id ? 
+                              <Loader2 className="h-4 w-4 animate-spin" /> : 
+                              <UserMinus className="h-4 w-4" />}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -274,8 +353,32 @@ export function CourseAttendeesManagementDialog({
         onOpenChange={setDeleteDialogOpen}
         title="Remove Attendee"
         description={`Are you sure you want to remove ${selectedAttendee?.name} ${selectedAttendee?.surname} from this course? This action cannot be undone.`}
-        onConfirm={confirmRemoveAttendee}
+        onConfirm={handleRemoveAttendee}
       />
+      
+      {/* Return to Waitlist Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={returnToWaitlistDialogOpen}
+        onOpenChange={setReturnToWaitlistDialogOpen}
+        title="Return to Waitlist"
+        description={`Are you sure you want to return ${selectedAttendee?.name} ${selectedAttendee?.surname} to the waitlist? They will be removed from this course.`}
+        onConfirm={handleReturnToWaitlist}
+      />
+      
+      {/* Attendee Remarks Dialog */}
+      {selectedAttendee && (
+        <RemarkDialog
+          open={remarksDialogOpen}
+          onOpenChange={setRemarksDialogOpen}
+          mode="create"
+          attendeeId={selectedAttendee.id}
+          onSuccess={() => {
+            // Refresh data if needed after adding remarks
+            setRemarksDialogOpen(false);
+            setSelectedAttendee(null);
+          }}
+        />
+      )}
     </>
   );
 }
