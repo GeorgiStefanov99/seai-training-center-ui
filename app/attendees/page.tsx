@@ -6,10 +6,12 @@ import { CustomTable } from "@/components/ui/custom-table"
 import { Column } from "@/types/table"
 import { Attendee } from "@/types/attendee"
 import { getAttendees, deleteAttendee } from "@/services/attendeeService"
+import { getAttendeeEnrolledCourses } from "@/services/attendeeCourseService"
+import { getWaitlistRecordsByAttendee } from "@/services/waitlistService"
 import { createRemark, updateRemark, deleteRemark, getAttendeeRemarks } from "@/services/remarkService"
 import { RANK_LABELS } from "@/lib/rank-labels"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Pencil, Trash2, Search, ChevronRight, MessageSquare, MoreHorizontal, Edit, Plus } from "lucide-react"
+import { PlusCircle, Pencil, Trash2, Search, ChevronRight, MessageSquare, MoreHorizontal, Edit, Plus, BookOpen, Clock } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { AttendeeDialog, DeleteAttendeeDialog } from "@/components/dialogs/attendee-dialog"
 import { RemarkDialog, DeleteRemarkDialog } from "@/components/dialogs/remark-dialog"
@@ -17,6 +19,7 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
 import { Remark } from "@/types/remark"
+import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +43,11 @@ export default function AttendeesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedAttendee, setSelectedAttendee] = useState<Attendee | undefined>(undefined)
   const [isDeleting, setIsDeleting] = useState(false)
+  
+  // Course and waitlist counts
+  const [activeCourseCount, setActiveCourseCount] = useState<Record<string, number>>({})
+  const [waitlistCount, setWaitlistCount] = useState<Record<string, number>>({})
+  const [isLoadingCounts, setIsLoadingCounts] = useState(false)
   
   // Remark dialog states
   const [createRemarkDialogOpen, setCreateRemarkDialogOpen] = useState(false)
@@ -127,6 +135,10 @@ export default function AttendeesPage() {
         
         // Fetch remarks for all attendees
         await fetchAllRemarks(data);
+        
+        // Fetch course and waitlist counts for all attendees
+        console.log('Calling fetchAllCounts after attendees loaded');
+        await fetchAllCounts(data);
       } catch (err) {
         console.error('Error fetching attendees:', err)
         setError('Failed to load attendees. Please try again later.')
@@ -138,6 +150,77 @@ export default function AttendeesPage() {
 
     fetchAttendees()
   }, [trainingCenterId])
+
+  // Function to fetch all counts for all attendees
+  const fetchAllCounts = async (attendeesList: Attendee[]) => {
+    if (!trainingCenterId || attendeesList.length === 0) return;
+    
+    setIsLoadingCounts(true);
+    const courseCounts: Record<string, number> = {};
+    const waitlistCounts: Record<string, number> = {};
+    
+    try {
+      // Process each attendee sequentially
+      for (const attendee of attendeesList) {
+        if (attendee.id) {
+          try {
+            // Get enrolled courses
+            const courses = await getAttendeeEnrolledCourses({
+              trainingCenterId,
+              attendeeId: attendee.id
+            });
+            courseCounts[attendee.id] = courses.length;
+            
+            // Get waitlist records
+            const waitlistRecords = await getWaitlistRecordsByAttendee({
+              trainingCenterId,
+              attendeeId: attendee.id
+            });
+            waitlistCounts[attendee.id] = waitlistRecords.length;
+            
+          } catch (err) {
+            console.error(`Error fetching data for attendee ${attendee.id}:`, err);
+            courseCounts[attendee.id] = 0;
+            waitlistCounts[attendee.id] = 0;
+          }
+        }
+      }
+      
+      setActiveCourseCount(courseCounts);
+      setWaitlistCount(waitlistCounts);
+    } catch (error) {
+      console.error("Error fetching attendee counts:", error);
+    } finally {
+      setIsLoadingCounts(false);
+    }
+  };
+  
+  // Function to fetch all attendees
+  const fetchAttendees = async () => {
+    if (!trainingCenterId) {
+      setError("Training center ID is required")
+      setIsLoading(false)
+      return
+    }
+    
+    try {
+      setIsLoading(true)
+      const data = await getAttendees(trainingCenterId)
+      setAttendees(data)
+      setError(null)
+      
+      // Also refresh remarks
+      await fetchAllRemarks(data);
+      
+      // Fetch course and waitlist counts
+      await fetchAllCounts(data);
+    } catch (err) {
+      console.error("Error fetching attendees:", err)
+      setError("Failed to load attendees. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Refresh the attendees list
   const refreshAttendees = async () => {
@@ -154,6 +237,9 @@ export default function AttendeesPage() {
       
       // Also refresh remarks
       await fetchAllRemarks(data);
+      
+      // Fetch course and waitlist counts
+      await fetchAllCounts(data);
       
       toast.success("Attendees list refreshed")
     } catch (err) {
@@ -308,6 +394,48 @@ export default function AttendeesPage() {
       key: "rank",
       header: "Rank",
       cell: (row: Attendee) => RANK_LABELS[row.rank] || row.rank
+    },
+    {
+      key: "courses",
+      header: "Courses",
+      cell: (row: Attendee) => {
+        if (!row.id) {
+          return <span className="text-muted-foreground text-xs">No ID</span>;
+        }
+        
+        if (isLoadingCounts) {
+          return <span className="text-muted-foreground text-xs">Loading...</span>;
+        }
+        
+        const count = activeCourseCount[row.id] || 0;
+        return (
+          <Badge variant={count > 0 ? "default" : "outline"} className="whitespace-nowrap">
+            <BookOpen className="h-3 w-3 mr-1" />
+            {count}
+          </Badge>
+        );
+      }
+    },
+    {
+      key: "waitlist",
+      header: "Waitlist",
+      cell: (row: Attendee) => {
+        if (!row.id) {
+          return <span className="text-muted-foreground text-xs">No ID</span>;
+        }
+        
+        if (isLoadingCounts) {
+          return <span className="text-muted-foreground text-xs">Loading...</span>;
+        }
+        
+        const count = waitlistCount[row.id] || 0;
+        return (
+          <Badge variant={count > 0 ? "success" : "outline"} className="whitespace-nowrap">
+            <Clock className="h-3 w-3 mr-1" />
+            {count}
+          </Badge>
+        );
+      }
     },
     {
       key: "remarks",
