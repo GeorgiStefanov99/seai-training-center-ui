@@ -10,10 +10,10 @@ import { CourseTemplate, ActiveCourse } from "@/types/course-template"
 import { getCourseTemplateById, getActiveCoursesForTemplate } from "@/services/courseTemplateService"
 import { createRemark, updateRemark, deleteRemark, getAttendeeRemarks } from "@/services/remarkService"
 import { useAuth } from "@/hooks/useAuth"
-import { Loader2, Edit, ArrowLeft, Calendar, CalendarPlus, Users, DollarSign, BookOpen, Trash2, UserPlus, MoreHorizontal, ClipboardList, MessageSquare } from "lucide-react"
+import { Loader2, Edit, ArrowLeft, Calendar, CalendarPlus, Users, DollarSign, BookOpen, Trash2, UserPlus, MoreHorizontal, ClipboardList, MessageSquare, ArrowRightCircle, ArrowLeftCircle, CheckCircle2, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { deleteCourse } from "@/services/courseService"
-import { getWaitlistRecordsByTemplate, deleteWaitlistRecord } from "@/services/waitlistService"
+import { getWaitlistRecordsByTemplate, deleteWaitlistRecord, updateWaitlistRecord } from "@/services/waitlistService"
 import { WaitlistRecord } from "@/types/course-template"
 import { Remark } from "@/types/remark"
 import { CourseTemplateDialog } from "@/components/dialogs/course-template-dialog"
@@ -136,6 +136,8 @@ function CourseTemplateDetailContent() {
   const [selectedCourse, setSelectedCourse] = useState<ActiveCourse | null>(null)
   const [waitlistRecords, setWaitlistRecords] = useState<WaitlistRecord[]>([])
   const [isLoadingWaitlist, setIsLoadingWaitlist] = useState(false)
+  const [waitlistStatusFilter, setWaitlistStatusFilter] = useState<"ALL" | "WAITING" | "CONFIRMED">("ALL")
+  const [updatingWaitlistRecordId, setUpdatingWaitlistRecordId] = useState<string | null>(null)
   const [waitlistRecordDialogOpen, setWaitlistRecordDialogOpen] = useState(false)
   const [waitlistEditDialogOpen, setWaitlistEditDialogOpen] = useState(false)
   const [courseAttendeesDialogOpen, setCourseAttendeesDialogOpen] = useState(false)
@@ -395,6 +397,41 @@ function CourseTemplateDetailContent() {
   // Handle adding a new waitlist record
   const handleAddWaitlistRecord = () => {
     setWaitlistRecordDialogOpen(true)
+  }
+  
+  // Handle updating waitlist record status
+  const handleUpdateWaitlistStatus = async (record: WaitlistRecord, newStatus: "WAITING" | "CONFIRMED") => {
+    if (!trainingCenterId || !record.id) return
+    
+    try {
+      setUpdatingWaitlistRecordId(record.id)
+      
+      // Prepare the update data
+      const updateData = {
+        status: newStatus
+      }
+      
+      // Call the API to update the waitlist record
+      await updateWaitlistRecord(
+        { trainingCenterId, waitlistRecordId: record.id },
+        updateData
+      )
+      
+      // Update the local state
+      setWaitlistRecords(prev => 
+        prev.map(item => 
+          item.id === record.id ? { ...item, status: newStatus } : item
+        )
+      )
+      
+      // Show success message
+      toast.success(`Waitlist record ${newStatus === "CONFIRMED" ? "confirmed" : "returned to waiting"} successfully`)
+    } catch (error) {
+      console.error(`Error updating waitlist record status:`, error)
+      toast.error(`Failed to update waitlist record status`)
+    } finally {
+      setUpdatingWaitlistRecordId(null)
+    }
   }
   
   // Function to open the course attendees management dialog
@@ -812,11 +849,31 @@ function CourseTemplateDetailContent() {
           {/* Waitlist Tab */}
           <TabsContent value="waitlist">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">Waitlist Records</CardTitle>
-                <CardDescription>
-                  Manage waitlist records for this course template
-                </CardDescription>
+              <CardHeader className="flex flex-col space-y-4">
+                <div>
+                  <CardTitle className="text-xl">Waitlist Records</CardTitle>
+                  <CardDescription>
+                    Manage waitlist records for this course template
+                  </CardDescription>
+                </div>
+                <div className="flex">
+                  <Tabs value={waitlistStatusFilter} onValueChange={(value) => setWaitlistStatusFilter(value as "ALL" | "WAITING" | "CONFIRMED")} className="w-full">
+                    <TabsList className="grid w-full grid-cols-3 max-w-md">
+                      <TabsTrigger value="ALL" className="flex items-center gap-2">
+                        <ClipboardList className="h-4 w-4" />
+                        All
+                      </TabsTrigger>
+                      <TabsTrigger value="WAITING" className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Waiting
+                      </TabsTrigger>
+                      <TabsTrigger value="CONFIRMED" className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Confirmed
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
               </CardHeader>
               <CardContent>
                 {isLoadingWaitlist ? (
@@ -847,7 +904,9 @@ function CourseTemplateDetailContent() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {waitlistRecords.map((record) => {
+                        {waitlistRecords
+                          .filter(record => waitlistStatusFilter === "ALL" || record.status === waitlistStatusFilter)
+                          .map((record) => {
                           // Get remarks for this attendee
                           const attendeeId = record.attendeeResponse.id;
                           const attendeeName = `${record.attendeeResponse.name} ${record.attendeeResponse.surname}`;
@@ -872,6 +931,37 @@ function CourseTemplateDetailContent() {
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <div className="flex items-center justify-end gap-2">
+                                    {/* Status update buttons */}
+                                    {record.status === "WAITING" && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleUpdateWaitlistStatus(record, "CONFIRMED")}
+                                        title="Confirm Waitlist Record"
+                                        disabled={updatingWaitlistRecordId === record.id}
+                                      >
+                                        {updatingWaitlistRecordId === record.id ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <ArrowRightCircle className="h-4 w-4 text-green-500" />
+                                        )}
+                                      </Button>
+                                    )}
+                                    {record.status === "CONFIRMED" && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleUpdateWaitlistStatus(record, "WAITING")}
+                                        title="Return to Waiting"
+                                        disabled={updatingWaitlistRecordId === record.id}
+                                      >
+                                        {updatingWaitlistRecordId === record.id ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <ArrowLeftCircle className="h-4 w-4 text-amber-500" />
+                                        )}
+                                      </Button>
+                                    )}
                                     <Button
                                       variant="ghost"
                                       size="icon"
