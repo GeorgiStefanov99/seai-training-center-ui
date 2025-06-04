@@ -399,6 +399,7 @@ export default function CoursesPage() {
             onOpenChange={setAttendeesDialogOpen}
             courseId={selectedCourse.id}
             courseName={selectedCourse.name}
+            templateId={selectedCourse.templateId}
             refreshData={fetchCourses}
           />
         )}

@@ -298,10 +298,10 @@ export function CourseAttendeeDialog({
                 <UserPlus className="mr-2 h-4 w-4" />
                 New Attendee
               </TabsTrigger>
-              <TabsTrigger value="waitlist" className="flex items-center">
-                <Users className="mr-2 h-4 w-4" />
-                From Waitlist
-              </TabsTrigger>
+                <TabsTrigger value="waitlist" className="flex items-center">
+                  <Users className="mr-2 h-4 w-4" />
+                  From Waitlist
+                </TabsTrigger>
             </TabsList>
             
             <TabsContent value="existing" className="space-y-4 pt-4">
@@ -407,7 +407,7 @@ export function CourseAttendeeDialog({
               
               {!templateId ? (
                 <div className="p-4 text-center text-sm text-muted-foreground border rounded-md">
-                  No template ID provided. Waitlist records cannot be displayed.
+                  This feature is only available for courses created from a template. The waitlist functionality is tied to specific course templates.
                 </div>
               ) : (
                 <Form {...form}>
