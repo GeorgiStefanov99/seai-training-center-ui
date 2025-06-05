@@ -12,7 +12,7 @@ import { Course } from "@/types/course"
 import { getAttendeeById } from "@/services/attendeeService"
 import { RANK_LABELS } from "@/lib/rank-labels"
 import { useAuth } from "@/hooks/useAuth"
-import { Loader2, Mail, Phone, Award, Edit, MessageSquare, Plus, RefreshCw, Calendar, Trash2, ArrowLeft, Clock, ExternalLink } from "lucide-react"
+import { Loader2, Mail, Phone, Award, Edit, MessageSquare, Plus, RefreshCw, Calendar, Trash2, ArrowLeft, Clock, ExternalLink, FileText, Check } from "lucide-react"
 import { toast } from "sonner"
 import { AttendeeDialog } from "@/components/dialogs/attendee-dialog"
 import { RemarkDialog } from "@/components/dialogs/remark-dialog"
@@ -25,6 +25,11 @@ import { getAttendeeEnrolledCourses, removeAttendeeFromCourse } from "@/services
 import { getWaitlistRecordsByAttendee } from "@/services/waitlistService"
 import { getCourseTemplateById } from "@/services/courseTemplateService"
 import { WaitlistEditDialog } from "@/components/dialogs/waitlist-edit-dialog"
+import { Document, FileItem } from "@/types/document"
+import { getAttendeeDocuments, createDocument, updateDocument, deleteDocument } from "@/services/documentService"
+import { getDocumentFiles, getFileDownloadUrl, uploadFile, deleteFile } from "@/services/fileService"
+import { DocumentDialog } from "@/components/dialogs/document-dialog"
+import { DocumentPreviewDialog } from "@/components/dialogs/document-preview-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,6 +69,15 @@ function AttendeeDetailContent() {
   const [waitlistEditDialogOpen, setWaitlistEditDialogOpen] = useState(false)
   const [selectedWaitlistRecord, setSelectedWaitlistRecord] = useState<WaitlistRecord | null>(null)
   const [courseTemplates, setCourseTemplates] = useState<{[key: string]: CourseTemplate}>({})
+  
+  // Documents state
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
+  const [documentDialogOpen, setDocumentDialogOpen] = useState(false)
+  const [selectedDocument, setSelectedDocument] = useState<Document | undefined>(undefined)
+  const [documentFiles, setDocumentFiles] = useState<{[key: string]: FileItem[]}>({}) 
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false)
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
@@ -213,6 +227,43 @@ function AttendeeDetailContent() {
     }
   }
 
+  // Function to fetch documents for the attendee
+  const fetchDocuments = async () => {
+    if (!trainingCenterId || !attendeeId) {
+      return
+    }
+    
+    setIsLoadingDocuments(true)
+    try {
+      const data = await getAttendeeDocuments({ trainingCenterId, attendeeId: attendeeId as string })
+      setDocuments(data)
+      
+      // Fetch files for each document
+      const filesMap: {[key: string]: FileItem[]} = {}
+      
+      for (const doc of data) {
+        try {
+          const files = await getDocumentFiles({ 
+            trainingCenterId, 
+            attendeeId: attendeeId as string,
+            documentId: doc.id 
+          })
+          filesMap[doc.id] = files
+        } catch (err) {
+          console.error(`Error fetching files for document ${doc.id}:`, err)
+          filesMap[doc.id] = []
+        }
+      }
+      
+      setDocumentFiles(filesMap)
+    } catch (err) {
+      console.error('Error fetching documents:', err)
+      toast.error('Failed to load documents. Please try again.')
+    } finally {
+      setIsLoadingDocuments(false)
+    }
+  }
+
   // Handle removing attendee from a course
   const handleRemoveFromCourse = (course: Course) => {
     setSelectedCourse(course)
@@ -268,11 +319,12 @@ function AttendeeDetailContent() {
         setAttendee(data)
         setError(null)
         
-        // After fetching attendee, fetch their remarks and courses
+        // After fetching attendee, fetch their remarks, courses and documents
         await Promise.all([
           fetchRemarks(),
           fetchEnrolledCourses(),
-          fetchWaitlistRecords()
+          fetchWaitlistRecords(),
+          fetchDocuments()
         ])
       } catch (err) {
         console.error('DEBUG - Attendee Detail - Error fetching details:', err)
@@ -361,6 +413,49 @@ function AttendeeDetailContent() {
   const navigateToCourseTemplate = (templateId: string) => {
     router.push(`/course-templates/detail?id=${templateId}`)
   }
+  
+  // Document management handlers
+  const handleAddDocument = () => {
+    setSelectedDocument(undefined)
+    setDocumentDialogOpen(true)
+  }
+  
+  const handleEditDocument = (document: Document) => {
+    setSelectedDocument(document)
+    setDocumentDialogOpen(true)
+  }
+  
+  const handleDocumentSuccess = async () => {
+    // Refresh documents after successful operation
+    await fetchDocuments()
+    toast.success("Document updated successfully")
+  }
+  
+  const handlePreviewDocument = (documentId: string) => {
+    setSelectedDocumentId(documentId)
+    setPreviewDialogOpen(true)
+  }
+  
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!trainingCenterId || !attendeeId) {
+      return
+    }
+    
+    try {
+      await deleteDocument({
+        trainingCenterId,
+        attendeeId: attendeeId as string,
+        documentId
+      })
+      
+      // Refresh documents after deletion
+      await fetchDocuments()
+      toast.success("Document deleted successfully")
+    } catch (err) {
+      console.error('Error deleting document:', err)
+      toast.error('Failed to delete document. Please try again.')
+    }
+  }
 
   const getInitials = (name?: string, surname?: string) => {
     if (!name && !surname) return "?"
@@ -444,11 +539,12 @@ function AttendeeDetailContent() {
         
         {/* Tabs */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="remarks">Remarks</TabsTrigger>
             <TabsTrigger value="courses">Courses</TabsTrigger>
             <TabsTrigger value="waitlist">Waitlist</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="quizzes">Quiz Attempts</TabsTrigger>
           </TabsList>
           
@@ -767,6 +863,128 @@ function AttendeeDetailContent() {
             </Card>
           </TabsContent>
           
+          {/* Documents Tab */}
+          <TabsContent value="documents" className="mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Documents</CardTitle>
+                  <CardDescription>Manage attendee documents and files</CardDescription>
+                </div>
+                <Button onClick={handleAddDocument}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Document
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {isLoadingDocuments ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : documents.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="rounded-full bg-muted p-3">
+                      <FileText className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-medium">No Documents</h3>
+                    <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+                      This attendee has no documents yet. Add documents such as ID cards, passports, or certificates.
+                    </p>
+                    <Button onClick={handleAddDocument} className="mt-4">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Document
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {documents.map((doc) => {
+                      const files = documentFiles[doc.id] || []
+                      const fileCount = files.length
+                      const isExpired = doc.expiryDate && new Date(doc.expiryDate) < new Date()
+                      
+                      return (
+                        <div key={doc.id} className="border rounded-lg overflow-hidden">
+                          <div className="flex items-center justify-between p-4 bg-muted/30">
+                            <div className="flex items-center space-x-4">
+                              <div className="bg-primary/10 p-2 rounded-full">
+                                <FileText className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <h3 className="font-medium">{doc.name}</h3>
+                                <p className="text-sm text-muted-foreground">#{doc.number}</p>
+                              </div>
+                              {doc.isVerified && (
+                                <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full flex items-center">
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Verified
+                                </div>
+                              )}
+                              {isExpired && (
+                                <div className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
+                                  Expired
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditDocument(doc)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleDeleteDocument(doc.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="p-4 border-t">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                              {doc.issueDate && (
+                                <div>
+                                  <h4 className="text-sm font-medium text-muted-foreground">Issue Date</h4>
+                                  <p>{format(new Date(doc.issueDate), 'PPP')}</p>
+                                </div>
+                              )}
+                              {doc.expiryDate && (
+                                <div>
+                                  <h4 className="text-sm font-medium text-muted-foreground">Expiry Date</h4>
+                                  <p>{format(new Date(doc.expiryDate), 'PPP')}</p>
+                                </div>
+                              )}
+                              <div>
+                                <h4 className="text-sm font-medium text-muted-foreground">Files</h4>
+                                <p>{fileCount} attachment{fileCount !== 1 ? 's' : ''}</p>
+                              </div>
+                            </div>
+                            
+                            {fileCount > 0 ? (
+                              <Button 
+                                variant="secondary" 
+                                onClick={() => handlePreviewDocument(doc.id)}
+                              >
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Preview Files
+                              </Button>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">No files attached</p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
           {/* Quiz Attempts Tab */}
           <TabsContent value="quizzes" className="mt-6">
             <Card>
@@ -848,6 +1066,31 @@ function AttendeeDetailContent() {
           onOpenChange={setWaitlistEditDialogOpen}
           waitlistRecord={selectedWaitlistRecord}
           onSuccess={handleWaitlistSuccess}
+        />
+      )}
+      
+      {/* Document Dialog */}
+      {attendeeId && (
+        <DocumentDialog
+          open={documentDialogOpen}
+          onOpenChange={setDocumentDialogOpen}
+          document={selectedDocument}
+          attendeeId={attendeeId}
+          trainingCenterId={trainingCenterId}
+          onSuccess={handleDocumentSuccess}
+        />
+      )}
+      
+      {/* Document Preview Dialog */}
+      {attendeeId && selectedDocumentId && (
+        <DocumentPreviewDialog
+          open={previewDialogOpen}
+          onOpenChange={setPreviewDialogOpen}
+          attendeeId={attendeeId}
+          documentId={selectedDocumentId}
+          trainingCenterId={trainingCenterId}
+          files={documentFiles[selectedDocumentId] || []}
+          onFileDeleted={fetchDocuments}
         />
       )}
     </PageLayout>
