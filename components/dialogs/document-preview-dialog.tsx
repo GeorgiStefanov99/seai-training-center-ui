@@ -1,14 +1,20 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { FileItem } from "@/types/document"
-import { getFileContent, deleteFile, extractFileIdOrName } from "@/services/fileService"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Download, Loader2, Trash2, FileText, Image as ImageIcon, File, X } from "lucide-react"
-import { toast } from "sonner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import React, { useState, useEffect, useCallback } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { FileItem } from '@/types/document'
+import { getFileContent, deleteFile, extractFileIdOrName } from '@/services/fileService'
+import { Loader2, FileText, File, Download, Trash2, ImageIcon, Share2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { ShareFileDialog } from './share-file-dialog'
 
 interface DocumentPreviewDialogProps {
   open: boolean
@@ -16,6 +22,7 @@ interface DocumentPreviewDialogProps {
   trainingCenterId: string
   attendeeId: string
   documentId: string
+  documentName?: string
   files: FileItem[]
   onFileDeleted?: () => void
 }
@@ -31,6 +38,7 @@ export function DocumentPreviewDialog({
   trainingCenterId,
   attendeeId,
   documentId,
+  documentName,
   files,
   onFileDeleted
 }: DocumentPreviewDialogProps) {
@@ -41,7 +49,8 @@ export function DocumentPreviewDialog({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [fileToDelete, setFileToDelete] = useState<FileItem | null>(null)
-  
+  const [showShareDialog, setShowShareDialog] = useState(false)
+
   // Get the active file based on the current index
   const activeFile = files && files.length > activeFileIndex ? files[activeFileIndex] : null
 
@@ -345,7 +354,7 @@ export function DocumentPreviewDialog({
                         </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"
                           size="sm"
@@ -364,7 +373,14 @@ export function DocumentPreviewDialog({
                             </>
                           )}
                         </Button>
-
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowShareDialog(true)}
+                        >
+                          <Share2 className="h-4 w-4 mr-2" />
+                          Share
+                        </Button>
                         <Button
                           variant="destructive"
                           size="sm"
@@ -441,6 +457,19 @@ export function DocumentPreviewDialog({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {/* Share File Dialog */}
+          {activeFile && (
+            <ShareFileDialog
+              open={showShareDialog}
+              onOpenChange={setShowShareDialog}
+              file={activeFile}
+              documentName={documentName}
+              trainingCenterId={trainingCenterId}
+              attendeeId={attendeeId}
+              documentId={documentId}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>
