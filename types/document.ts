@@ -39,7 +39,7 @@ export interface FileApiParams {
 // Request types
 export interface CreateDocumentRequest {
   name: string;
-  number: string;
+  number?: string;
   issueDate?: string;
   expiryDate?: string;
   verified?: boolean;

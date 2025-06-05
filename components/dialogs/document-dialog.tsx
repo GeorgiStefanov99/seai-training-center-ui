@@ -9,8 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import { format } from "date-fns"
-import { CalendarIcon, Loader2, X, Upload, FileText, Check } from "lucide-react"
+import { format, parse } from "date-fns"
+import { CalendarIcon, Loader2, X, Upload, FileText, Check, Infinity } from "lucide-react"
 import { Document, CreateDocumentRequest, DOCUMENT_TYPES } from "@/types/document"
 import { FileUploader } from "@/components/file-uploader"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -41,8 +41,9 @@ export function DocumentDialog({
   // Form state
   const [name, setName] = useState("")
   const [number, setNumber] = useState("")
-  const [issueDate, setIssueDate] = useState<Date | undefined>(undefined)
-  const [expiryDate, setExpiryDate] = useState<Date | undefined>(undefined)
+  const [issueDateStr, setIssueDateStr] = useState("")
+  const [expiryDateStr, setExpiryDateStr] = useState("")
+  const [isUnlimitedExpiry, setIsUnlimitedExpiry] = useState(false)
   const [verified, setVerified] = useState(false)
   
   // File upload state
@@ -58,15 +59,17 @@ export function DocumentDialog({
     if (document) {
       setName(document.name || "")
       setNumber(document.number || "")
-      setIssueDate(document.issueDate ? new Date(document.issueDate) : undefined)
-      setExpiryDate(document.expiryDate ? new Date(document.expiryDate) : undefined)
+      setIssueDateStr(document.issueDate ? format(new Date(document.issueDate), "dd/MM/yyyy") : "")
+      setExpiryDateStr(document.expiryDate ? format(new Date(document.expiryDate), "dd/MM/yyyy") : "")
+      setIsUnlimitedExpiry(!document.expiryDate)
       setVerified(document.isVerified || false)
     } else {
       // Reset form for new document
       setName("")
       setNumber("")
-      setIssueDate(undefined)
-      setExpiryDate(undefined)
+      setIssueDateStr("")
+      setExpiryDateStr("")
+      setIsUnlimitedExpiry(false)
       setVerified(false)
     }
     // Reset files when dialog opens/closes
@@ -120,11 +123,40 @@ export function DocumentDialog({
     setIsSubmitting(true)
     
     try {
+      // Validate dates
+      let issueDate: Date | undefined
+      let expiryDate: Date | undefined
+
+      if (issueDateStr) {
+        try {
+          issueDate = parse(issueDateStr, "dd/MM/yyyy", new Date())
+        } catch (error) {
+          toast.error("Invalid issue date format. Please use dd/MM/yyyy")
+          setIsSubmitting(false)
+          return
+        }
+      }
+
+      if (!isUnlimitedExpiry && expiryDateStr) {
+        try {
+          expiryDate = parse(expiryDateStr, "dd/MM/yyyy", new Date())
+          if (issueDate && expiryDate < issueDate) {
+            toast.error("Expiry date must be after issue date")
+            setIsSubmitting(false)
+            return
+          }
+        } catch (error) {
+          toast.error("Invalid expiry date format. Please use dd/MM/yyyy")
+          setIsSubmitting(false)
+          return
+        }
+      }
+
       const documentData: CreateDocumentRequest = {
         name,
-        number,
+        number: number || undefined,
         issueDate: issueDate ? format(issueDate, 'yyyy-MM-dd') : undefined,
-        expiryDate: expiryDate ? format(expiryDate, 'yyyy-MM-dd') : undefined,
+        expiryDate: isUnlimitedExpiry ? undefined : (expiryDate ? format(expiryDate, 'yyyy-MM-dd') : undefined),
         verified
       }
       
@@ -194,8 +226,6 @@ export function DocumentDialog({
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
-
-
           {/* Document Name */}
           <div className="space-y-2">
             <Label htmlFor="name">Document Name</Label>
@@ -210,68 +240,55 @@ export function DocumentDialog({
           
           {/* Document Number */}
           <div className="space-y-2">
-            <Label htmlFor="number">Document Number</Label>
+            <Label htmlFor="number">Document Number (Optional)</Label>
             <Input 
               id="number" 
               value={number} 
               onChange={(e) => setNumber(e.target.value)} 
               placeholder="Enter document number"
-              required
             />
           </div>
           
           {/* Issue Date */}
           <div className="space-y-2">
-            <Label>Issue Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !issueDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {issueDate ? format(issueDate, "PPP") : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={issueDate}
-                  onSelect={setIssueDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <Label htmlFor="issueDate">Issue Date</Label>
+            <Input 
+              id="issueDate"
+              value={issueDateStr}
+              onChange={(e) => setIssueDateStr(e.target.value)}
+              placeholder="dd/MM/yyyy"
+              required
+            />
           </div>
           
           {/* Expiry Date */}
           <div className="space-y-2">
-            <Label>Expiry Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !expiryDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {expiryDate ? format(expiryDate, "PPP") : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={expiryDate}
-                  onSelect={setExpiryDate}
-                  initialFocus
+            <div className="flex items-center justify-between">
+              <Label htmlFor="expiryDate">Expiry Date</Label>
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="unlimited-expiry" className="text-sm text-muted-foreground">
+                  Unlimited
+                </Label>
+                <Switch
+                  id="unlimited-expiry"
+                  checked={isUnlimitedExpiry}
+                  onCheckedChange={(checked) => {
+                    setIsUnlimitedExpiry(checked)
+                    if (checked) {
+                      setExpiryDateStr("")
+                    }
+                  }}
                 />
-              </PopoverContent>
-            </Popover>
+              </div>
+            </div>
+            <Input 
+              id="expiryDate"
+              value={expiryDateStr}
+              onChange={(e) => setExpiryDateStr(e.target.value)}
+              placeholder={isUnlimitedExpiry ? "Unlimited" : "dd/MM/yyyy"}
+              disabled={isUnlimitedExpiry}
+              required={!isUnlimitedExpiry}
+            />
           </div>
           
           {/* Verified Status */}
