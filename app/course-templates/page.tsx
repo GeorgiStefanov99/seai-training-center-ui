@@ -133,90 +133,98 @@ export default function CourseTemplatesPage() {
   const columns: Column[] = [
     {
       key: "index",
-      header: <div className="text-center w-full">#</div>,
-      cell: (_, index) => index + 1,
-      cellClassName: "text-center"
+      header: <div className="flex items-center justify-center w-full">#</div>,
+      cell: (_: any, index: number) => (
+        <div className="flex items-center justify-center w-full">{index + 1}</div>
+      ),
+      cellClassName: "text-center align-middle px-3 py-2"
     },
     {
       key: "name",
-      header: <div className="text-center w-full">Name</div>,
-      accessorKey: "name",
-      cellClassName: "text-center"
+      header: <div className="flex items-center justify-center w-full">Name</div>,
+      cell: (row: any) => (
+        <div className="flex items-center justify-center w-full font-medium">{row.name}</div>
+      ),
+      cellClassName: "text-center align-middle px-3 py-2"
     },
     {
       key: "price",
-      header: <div className="text-center w-full">Price</div>,
-      cell: (row: CourseTemplate) => formatCurrency(row.price, row.currency),
-      cellClassName: "text-center"
+      header: <div className="flex items-center justify-center w-full">Price</div>,
+      cell: (row: any) => (
+        <div className="flex items-center justify-center w-full">{formatCurrency(row.price, row.currency)}</div>
+      ),
+      cellClassName: "text-center align-middle px-3 py-2"
     },
     {
       key: "maxSeats",
-      header: <div className="text-center w-full">Max Seats</div>,
-      accessorKey: "maxSeats",
-      cellClassName: "text-center"
+      header: <div className="flex items-center justify-center w-full">Max Seats</div>,
+      cell: (row: any) => (
+        <div className="flex items-center justify-center w-full">{row.maxSeats}</div>
+      ),
+      cellClassName: "text-center align-middle px-3 py-2"
     },
     {
       key: "activeCourses",
-      header: <div className="text-center w-full">Active Courses</div>,
-      cell: (row: CourseTemplate) => {
-        const count = activeCoursesCount[row.id] || 0
+      header: <div className="flex items-center justify-center w-full">Active Courses</div>,
+      cell: (row: any) => {
+        const count = activeCoursesCount[row.id] || 0;
         return (
-          <div className="flex justify-center w-full">
+          <div className="flex items-center justify-center w-full">
             <Badge variant={count > 0 ? "default" : "outline"} className="whitespace-nowrap">
               <BookOpen className="h-3 w-3 mr-1" />
               {count}
             </Badge>
           </div>
-        )
+        );
       },
-      cellClassName: "text-center"
+      cellClassName: "text-center align-middle px-3 py-2"
     },
     {
       key: "waitlist",
-      header: <div className="text-center w-full">Waitlist</div>,
-      cell: (row: CourseTemplate) => {
-        const count = waitlistCount[row.id] || 0
+      header: <div className="flex items-center justify-center w-full">Waitlist</div>,
+      cell: (row: any) => {
+        const count = waitlistCount[row.id] || 0;
         return (
-          <div className="flex justify-center w-full">
+          <div className="flex items-center justify-center w-full">
             <Badge variant={count > 0 ? "success" : "outline"} className="whitespace-nowrap">
               <Clock className="h-3 w-3 mr-1" />
               {count}
             </Badge>
           </div>
-        )
+        );
       },
-      cellClassName: "text-center"
+      cellClassName: "text-center align-middle px-3 py-2"
     },
     {
       key: "description",
-      header: <div className="text-center w-full">Description</div>,
-      cell: (row: CourseTemplate) => (
-        <div className="max-w-[300px] truncate text-center w-full" title={row.description}>
+      header: <div className="flex items-center justify-center w-full">Description</div>,
+      cell: (row: any) => (
+        <div className="flex items-center justify-center w-full max-w-[300px] truncate" title={row.description}>
           {row.description || "No description"}
         </div>
       ),
-      cellClassName: "text-center"
+      cellClassName: "text-center align-middle px-3 py-2"
     },
     {
       key: "actions",
-      header: <div className="text-center w-full">Actions</div>,
-      cell: (row: CourseTemplate) => (
-        <div className="flex space-x-2 justify-center">
+      header: <div className="flex items-center justify-center w-full">Actions</div>,
+      cell: (row: any, _index: number) => (
+        <div className="flex items-center justify-center gap-2 w-full">
           <Button variant="ghost" size="icon" onClick={(e) => {
-            e.stopPropagation()
-            handleEdit(row)
+            e.stopPropagation();
+            handleEdit(row);
           }}>
             <Pencil className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={(e) => {
-            e.stopPropagation()
-            handleDelete(row)
+            e.stopPropagation();
+            handleDelete(row);
           }}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ),
-      cellClassName: "text-center"
+      cellClassName: "text-center align-middle px-3 py-2"
     }
   ]
 

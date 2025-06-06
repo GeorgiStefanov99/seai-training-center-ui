@@ -12,7 +12,8 @@ import {
   ClipboardList,
   Calendar,
   Video,
-  Archive
+  Archive,
+  FileText
 } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -29,6 +30,7 @@ const getMenuItems = (userType: string) => {
     { name: "Online Courses", icon: Video, href: "/online-courses" },
     { name: "Waitlist", icon: ClipboardList, href: "/waitlist" },
     { name: "Archive", icon: Archive, href: "/courses/archive" },
+    { name: "Documents", icon: FileText, href: "/documents" },
   ]
 
   return commonItems
