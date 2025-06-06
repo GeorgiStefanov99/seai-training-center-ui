@@ -10,9 +10,9 @@ import { CourseTemplate, ActiveCourse } from "@/types/course-template"
 import { getCourseTemplateById, getActiveCoursesForTemplate } from "@/services/courseTemplateService"
 import { createRemark, updateRemark, deleteRemark, getAttendeeRemarks } from "@/services/remarkService"
 import { useAuth } from "@/hooks/useAuth"
-import { Loader2, Edit, ArrowLeft, Calendar, CalendarPlus, Users, DollarSign, BookOpen, Trash2, UserPlus, MoreHorizontal, ClipboardList, MessageSquare, ArrowRightCircle, ArrowLeftCircle, CheckCircle2, Clock } from "lucide-react"
+import { Loader2, Edit, ArrowLeft, Calendar, CalendarPlus, Users, DollarSign, BookOpen, Trash2, UserPlus, MoreHorizontal, ClipboardList, MessageSquare, ArrowRightCircle, ArrowLeftCircle, CheckCircle2, Clock, Archive } from "lucide-react"
 import { toast } from "sonner"
-import { deleteCourse } from "@/services/courseService"
+import { deleteCourse, archiveCourse } from "@/services/courseService"
 import { getWaitlistRecordsByTemplate, deleteWaitlistRecord, updateWaitlistRecord } from "@/services/waitlistService"
 import { WaitlistRecord } from "@/types/course-template"
 import { Remark } from "@/types/remark"
@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { ArchiveConfirmationDialog } from "@/components/dialogs/archive-confirmation-dialog"
 
 // Mock data for testing or when API is unavailable
 const MOCK_TEMPLATES: Record<string, CourseTemplate> = {
@@ -154,6 +155,11 @@ function CourseTemplateDetailContent() {
   const [selectedRemark, setSelectedRemark] = useState<Remark | null>(null)
   const [selectedAttendeeForRemark, setSelectedAttendeeForRemark] = useState<{ id: string; name: string } | null>(null)
   const [expandedRemarkAttendeeId, setExpandedRemarkAttendeeId] = useState<string | null>(null)
+  
+  // Archive state
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false)
+  const [isArchiving, setIsArchiving] = useState(false)
+  const [selectedCourseToArchive, setSelectedCourseToArchive] = useState<ActiveCourse | null>(null)
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
@@ -591,6 +597,32 @@ function CourseTemplateDetailContent() {
     }
   }
 
+  // Handle archiving a course
+  const handleArchiveCourse = (course: ActiveCourse) => {
+    setSelectedCourseToArchive(course)
+    setArchiveDialogOpen(true)
+  }
+
+  const confirmArchiveCourse = async () => {
+    if (!trainingCenterId || !selectedCourseToArchive) return
+    try {
+      setIsArchiving(true)
+      await archiveCourse(
+        { trainingCenterId, courseId: selectedCourseToArchive.id },
+        { finishRemark: "Course archived by user" }
+      )
+      toast.success("Course archived successfully")
+      setArchiveDialogOpen(false)
+      setSelectedCourseToArchive(null)
+      refreshCourses()
+    } catch (error) {
+      console.error("Error archiving course:", error)
+      toast.error("Failed to archive course. Please try again.")
+    } finally {
+      setIsArchiving(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <PageLayout title="Course Template Details">
@@ -803,6 +835,17 @@ function CourseTemplateDetailContent() {
                                 title="Manage Course Attendees"
                               >
                                 <UserPlus className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleArchiveCourse(course);
+                                }}
+                                title="Archive Course"
+                              >
+                                <Archive className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
@@ -1241,7 +1284,17 @@ function CourseTemplateDetailContent() {
         </DialogContent>
       </Dialog>
       
-      {/* Note: Delete Remark Dialog removed as per requirements */}
+      {/* Archive Confirmation Dialog */}
+      {selectedCourseToArchive && (
+        <ArchiveConfirmationDialog
+          open={archiveDialogOpen}
+          onOpenChange={setArchiveDialogOpen}
+          onConfirm={confirmArchiveCourse}
+          courseName={selectedCourseToArchive.name}
+          endDate={selectedCourseToArchive.endDate}
+          isLoading={isArchiving}
+        />
+      )}
     </PageLayout>
   )
 }

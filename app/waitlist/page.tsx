@@ -503,28 +503,26 @@ function WaitlistContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Telephone</TableHead>
-                      <TableHead>Rank</TableHead>
-                      <TableHead>Course</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-center w-12">#</TableHead>
+                      <TableHead className="text-center">Name</TableHead>
+                      <TableHead className="text-center">Email</TableHead>
+                      <TableHead className="text-center">Telephone</TableHead>
+                      <TableHead className="text-center">Rank</TableHead>
+                      <TableHead className="text-center">Course</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRecords.map((record) => (
+                    {filteredRecords.map((record, idx) => (
                       <React.Fragment key={record.id}>
                         <TableRow>
-                          <TableCell>
-                            {record.attendeeResponse.name} {record.attendeeResponse.surname}
-                          </TableCell>
-                          <TableCell>{record.attendeeResponse.email}</TableCell>
-                          <TableCell>{record.attendeeResponse.telephone || "N/A"}</TableCell>
-                          <TableCell>
-                            {record.attendeeResponse.rank.replace(/_/g, " ")}
-                          </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center font-medium">{idx + 1}</TableCell>
+                          <TableCell className="text-center">{record.attendeeResponse.name} {record.attendeeResponse.surname}</TableCell>
+                          <TableCell className="text-center">{record.attendeeResponse.email}</TableCell>
+                          <TableCell className="text-center">{record.attendeeResponse.telephone || "N/A"}</TableCell>
+                          <TableCell className="text-center">{record.attendeeResponse.rank.replace(/_/g, " ")}</TableCell>
+                          <TableCell className="text-center">
                             {(() => {
                               const templateId = record.courseTemplateId || record.templateId;
                               const template = templateId ? courseTemplates[templateId] : null;
@@ -538,13 +536,13 @@ function WaitlistContent() {
                               );
                             })()}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             <Badge variant={getStatusBadgeVariant(record.status)}>
                               {record.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end space-x-2">
+                          <TableCell className="text-center">
+                            <div className="flex justify-center space-x-2">
                               {/* Status update buttons */}
                               {record.status === "WAITING" && (
                                 <Button
@@ -616,7 +614,7 @@ function WaitlistContent() {
                         {/* Remarks section - only shown when expanded */}
                         {expandedRemarkAttendeeId === record.attendeeResponse.id && (
                           <TableRow>
-                            <TableCell colSpan={5} className="bg-muted/30 p-4">
+                            <TableCell colSpan={8} className="bg-muted/30 p-4">
                               <div className="space-y-4">
                                 <div className="flex justify-between items-center">
                                   <h4 className="text-sm font-medium">Remarks for {record.attendeeResponse.name} {record.attendeeResponse.surname}</h4>

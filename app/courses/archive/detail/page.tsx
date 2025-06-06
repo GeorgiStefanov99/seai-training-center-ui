@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { getArchivedCourseById } from "@/services/courseService"
-import { getCourseAttendees } from "@/services/courseAttendeeService"
+import { getArchivedCourseAttendees } from "@/services/courseAttendeeService"
 import { Course } from "@/types/course"
 import { Attendee } from "@/types/attendee"
 import { toast } from "sonner"
@@ -97,7 +97,7 @@ function ArchivedCourseDetailContent() {
     
     try {
       setIsLoadingAttendees(true)
-      const attendeeData = await getCourseAttendees({ trainingCenterId, courseId })
+      const attendeeData = await getArchivedCourseAttendees({ trainingCenterId, courseId })
       setAttendees(attendeeData)
     } catch (error) {
       console.error("Error fetching course attendees:", error)
@@ -199,7 +199,7 @@ function ArchivedCourseDetailContent() {
                     
                     <div className="flex items-center text-muted-foreground">
                       <Users className="mr-2 h-4 w-4" />
-                      {course.maxSeats - course.availableSeats} / {course.maxSeats} seats
+                      {attendees.length} / {course.maxSeats} seats
                     </div>
                   </div>
                   
@@ -249,7 +249,7 @@ function ArchivedCourseDetailContent() {
                         <Users className="h-5 w-5 text-primary" />
                         <div>
                           <h3 className="text-sm font-medium text-muted-foreground">Enrolled</h3>
-                          <p className="text-xl font-bold">{course.maxSeats - course.availableSeats} / {course.maxSeats}</p>
+                          <p className="text-xl font-bold">{attendees.length} / {course.maxSeats}</p>
                           <p className="text-xs text-muted-foreground">{course.availableSeats} seats remaining</p>
                         </div>
                       </div>
@@ -330,19 +330,29 @@ function ArchivedCourseDetailContent() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Name</TableHead>
-                              <TableHead>Email</TableHead>
-                              <TableHead>Rank</TableHead>
-                              <TableHead>Telephone</TableHead>
+                              <TableHead className="text-center w-12">#</TableHead>
+                              <TableHead className="text-center">Name</TableHead>
+                              <TableHead className="text-center">Email</TableHead>
+                              <TableHead className="text-center">Rank</TableHead>
+                              <TableHead className="text-center">Telephone</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {attendees.map((attendee) => (
+                            {attendees.map((attendee, idx) => (
                               <TableRow key={attendee.id}>
-                                <TableCell className="font-medium">{`${attendee.name} ${attendee.surname}`}</TableCell>
-                                <TableCell>{attendee.email}</TableCell>
-                                <TableCell>{formatRank(attendee.rank)}</TableCell>
-                                <TableCell>{attendee.telephone || "N/A"}</TableCell>
+                                <TableCell className="text-center font-medium">{idx + 1}</TableCell>
+                                <TableCell className="text-center font-medium">
+                                  <a
+                                    href={`/attendees/attendee-detail?id=${attendee.id}`}
+                                    className="text-primary underline hover:text-primary/80 transition-colors"
+                                    onClick={e => e.stopPropagation()}
+                                  >
+                                    {`${attendee.name} ${attendee.surname}`}
+                                  </a>
+                                </TableCell>
+                                <TableCell className="text-center">{attendee.email}</TableCell>
+                                <TableCell className="text-center">{formatRank(attendee.rank)}</TableCell>
+                                <TableCell className="text-center">{attendee.telephone || "N/A"}</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>

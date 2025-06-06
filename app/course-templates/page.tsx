@@ -133,64 +133,75 @@ export default function CourseTemplatesPage() {
   const columns: Column[] = [
     {
       key: "index",
-      header: "#",
-      cell: (_, index) => index + 1
+      header: <div className="text-center w-full">#</div>,
+      cell: (_, index) => index + 1,
+      cellClassName: "text-center"
     },
     {
       key: "name",
-      header: "Name",
-      accessorKey: "name"
+      header: <div className="text-center w-full">Name</div>,
+      accessorKey: "name",
+      cellClassName: "text-center"
     },
     {
       key: "price",
-      header: "Price",
-      cell: (row: CourseTemplate) => formatCurrency(row.price, row.currency)
+      header: <div className="text-center w-full">Price</div>,
+      cell: (row: CourseTemplate) => formatCurrency(row.price, row.currency),
+      cellClassName: "text-center"
     },
     {
       key: "maxSeats",
-      header: "Max Seats",
-      accessorKey: "maxSeats"
+      header: <div className="text-center w-full">Max Seats</div>,
+      accessorKey: "maxSeats",
+      cellClassName: "text-center"
     },
     {
       key: "activeCourses",
-      header: "Active Courses",
+      header: <div className="text-center w-full">Active Courses</div>,
       cell: (row: CourseTemplate) => {
         const count = activeCoursesCount[row.id] || 0
         return (
-          <Badge variant={count > 0 ? "default" : "outline"} className="whitespace-nowrap">
-            <BookOpen className="h-3 w-3 mr-1" />
-            {count}
-          </Badge>
+          <div className="flex justify-center w-full">
+            <Badge variant={count > 0 ? "default" : "outline"} className="whitespace-nowrap">
+              <BookOpen className="h-3 w-3 mr-1" />
+              {count}
+            </Badge>
+          </div>
         )
-      }
+      },
+      cellClassName: "text-center"
     },
     {
       key: "waitlist",
-      header: "Waitlist",
+      header: <div className="text-center w-full">Waitlist</div>,
       cell: (row: CourseTemplate) => {
         const count = waitlistCount[row.id] || 0
         return (
-          <Badge variant={count > 0 ? "success" : "outline"} className="whitespace-nowrap">
-            <Clock className="h-3 w-3 mr-1" />
-            {count}
-          </Badge>
+          <div className="flex justify-center w-full">
+            <Badge variant={count > 0 ? "success" : "outline"} className="whitespace-nowrap">
+              <Clock className="h-3 w-3 mr-1" />
+              {count}
+            </Badge>
+          </div>
         )
-      }
+      },
+      cellClassName: "text-center"
     },
     {
       key: "description",
-      header: "Description",
+      header: <div className="text-center w-full">Description</div>,
       cell: (row: CourseTemplate) => (
-        <div className="max-w-[300px] truncate" title={row.description}>
+        <div className="max-w-[300px] truncate text-center w-full" title={row.description}>
           {row.description || "No description"}
         </div>
-      )
+      ),
+      cellClassName: "text-center"
     },
     {
       key: "actions",
-      header: "Actions",
+      header: <div className="text-center w-full">Actions</div>,
       cell: (row: CourseTemplate) => (
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 justify-center">
           <Button variant="ghost" size="icon" onClick={(e) => {
             e.stopPropagation()
             handleEdit(row)
@@ -204,7 +215,8 @@ export default function CourseTemplatesPage() {
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
-      )
+      ),
+      cellClassName: "text-center"
     }
   ]
 

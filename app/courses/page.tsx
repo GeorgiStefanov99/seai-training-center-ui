@@ -24,10 +24,11 @@ import {
   UserPlus, 
   MoreHorizontal,
   Users,
-  Calendar
+  Calendar,
+  Archive
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
-import { getCourses, deleteCourse } from "@/services/courseService"
+import { getCourses, deleteCourse, archiveCourse } from "@/services/courseService"
 import { Course } from "@/types/course"
 import { toast } from "sonner"
 import { DeleteConfirmationDialog } from "@/components/dialogs/delete-confirmation-dialog"
@@ -48,6 +49,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
+import { ArchiveConfirmationDialog } from "@/components/dialogs/archive-confirmation-dialog"
 
 export default function CoursesPage() {
   const router = useRouter()
@@ -66,6 +68,8 @@ export default function CoursesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [attendeesDialogOpen, setAttendeesDialogOpen] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false)
+  const [isArchiving, setIsArchiving] = useState(false)
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
@@ -206,6 +210,34 @@ export default function CoursesPage() {
     setAttendeesDialogOpen(true)
   }
   
+  // Handle archive course
+  const handleArchiveCourse = (course: Course) => {
+    setSelectedCourse(course)
+    setArchiveDialogOpen(true)
+  }
+  
+  // Confirm archive course
+  const confirmArchiveCourse = async () => {
+    if (!selectedCourse || !trainingCenterId) return
+    
+    try {
+      setIsArchiving(true)
+      await archiveCourse(
+        { trainingCenterId, courseId: selectedCourse.id },
+        { finishRemark: "Course archived by user" }
+      )
+      
+      toast.success("Course archived successfully")
+      fetchCourses() // Refresh the list
+      setArchiveDialogOpen(false)
+    } catch (error) {
+      console.error("Error archiving course:", error)
+      toast.error("Failed to archive course. Please try again.")
+    } finally {
+      setIsArchiving(false)
+    }
+  }
+  
   return (
     <PageLayout title="Courses">
       <div className="space-y-6">
@@ -302,41 +334,43 @@ export default function CoursesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Start Date</TableHead>
-                      <TableHead>Start Time</TableHead>
-                      <TableHead>End Date</TableHead>
-                      <TableHead>End Time</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Enrolled</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-center w-12">#</TableHead>
+                      <TableHead className="text-center">Name</TableHead>
+                      <TableHead className="text-center">Start Date</TableHead>
+                      <TableHead className="text-center">Start Time</TableHead>
+                      <TableHead className="text-center">End Date</TableHead>
+                      <TableHead className="text-center">End Time</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">Enrolled</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredCourses.map((course) => (
+                    {filteredCourses.map((course, idx) => (
                       <TableRow 
                         key={course.id} 
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => router.push(`/courses/detail?id=${course.id}`)}
                       >
-                        <TableCell className="font-medium">{course.name}</TableCell>
-                        <TableCell>{formatDate(course.startDate)}</TableCell>
-                        <TableCell>{formatTime(course.startTime)}</TableCell>
-                        <TableCell>{formatDate(course.endDate)}</TableCell>
-                        <TableCell>{formatTime(course.endTime)}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-center font-medium">{idx + 1}</TableCell>
+                        <TableCell className="text-center font-medium">{course.name}</TableCell>
+                        <TableCell className="text-center">{formatDate(course.startDate)}</TableCell>
+                        <TableCell className="text-center">{formatTime(course.startTime)}</TableCell>
+                        <TableCell className="text-center">{formatDate(course.endDate)}</TableCell>
+                        <TableCell className="text-center">{formatTime(course.endTime)}</TableCell>
+                        <TableCell className="text-center">
                           <Badge variant={getStatusBadgeVariant(course.status)}>
                             {course.status ? course.status.replace('_', ' ') : 'Unknown'}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
                             <Users className="h-3 w-3" />
                             <span>{course.maxSeats - course.availableSeats} / {course.maxSeats}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-2">
                             <Button
                               variant="ghost"
                               size="icon"
@@ -358,6 +392,17 @@ export default function CoursesPage() {
                               title="Assign Seafarer"
                             >
                               <UserPlus className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleArchiveCourse(course);
+                              }}
+                              title="Archive Course"
+                            >
+                              <Archive className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -420,6 +465,18 @@ export default function CoursesPage() {
             courseName={selectedCourse.name}
             templateId={selectedCourse.templateId}
             refreshData={fetchCourses}
+          />
+        )}
+
+        {/* Add the Archive Confirmation Dialog */}
+        {selectedCourse && (
+          <ArchiveConfirmationDialog
+            open={archiveDialogOpen}
+            onOpenChange={setArchiveDialogOpen}
+            onConfirm={confirmArchiveCourse}
+            courseName={selectedCourse.name}
+            endDate={selectedCourse.endDate}
+            isLoading={isArchiving}
           />
         )}
       </div>

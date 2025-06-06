@@ -66,7 +66,7 @@ interface RemoveAttendeeCourseParams extends AttendeeCoursesApiParams {
 }
 
 /**
- * Get all courses for a specific attendee
+ * Get all active courses for a specific attendee
  */
 export async function getAttendeeEnrolledCourses({
   trainingCenterId,
@@ -76,12 +76,33 @@ export async function getAttendeeEnrolledCourses({
     const token = getAuthToken();
     const headers = getAuthHeaders(token);
     const response = await axios.get<Course[]>(
-      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/attendees/${attendeeId}/courses`,
+      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/attendees/${attendeeId}/courses/active`,
       { headers }
     );
     return response.data;
   } catch (error) {
     console.error("Error fetching attendee enrolled courses:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get all past courses for a specific attendee
+ */
+export async function getAttendeePastCourses({
+  trainingCenterId,
+  attendeeId
+}: AttendeeCoursesApiParams): Promise<Course[]> {
+  try {
+    const token = getAuthToken();
+    const headers = getAuthHeaders(token);
+    const response = await axios.get<Course[]>(
+      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/attendees/${attendeeId}/courses/past`,
+      { headers }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching attendee past courses:", error);
     throw error;
   }
 }

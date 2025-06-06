@@ -6,7 +6,7 @@ import { CustomTable } from "@/components/ui/custom-table"
 import { Column } from "@/types/table"
 import { Attendee } from "@/types/attendee"
 import { getAttendees, deleteAttendee } from "@/services/attendeeService"
-import { getAttendeeEnrolledCourses } from "@/services/attendeeCourseService"
+import { getAttendeeEnrolledCourses, getAttendeePastCourses } from "@/services/attendeeCourseService"
 import { getWaitlistRecordsByAttendee } from "@/services/waitlistService"
 import { createRemark, updateRemark, deleteRemark, getAttendeeRemarks } from "@/services/remarkService"
 import { RANK_LABELS } from "@/lib/rank-labels"
@@ -46,6 +46,7 @@ export default function AttendeesPage() {
   
   // Course and waitlist counts
   const [activeCourseCount, setActiveCourseCount] = useState<Record<string, number>>({})
+  const [pastCourseCount, setPastCourseCount] = useState<Record<string, number>>({})
   const [waitlistCount, setWaitlistCount] = useState<Record<string, number>>({})
   const [isLoadingCounts, setIsLoadingCounts] = useState(false)
   
@@ -157,6 +158,7 @@ export default function AttendeesPage() {
     
     setIsLoadingCounts(true);
     const courseCounts: Record<string, number> = {};
+    const pastCourseCounts: Record<string, number> = {};
     const waitlistCounts: Record<string, number> = {};
     
     try {
@@ -171,6 +173,13 @@ export default function AttendeesPage() {
             });
             courseCounts[attendee.id] = courses.length;
             
+            // Get past courses
+            const pastCourses = await getAttendeePastCourses({
+              trainingCenterId,
+              attendeeId: attendee.id
+            });
+            pastCourseCounts[attendee.id] = pastCourses.length;
+            
             // Get waitlist records
             const waitlistRecords = await getWaitlistRecordsByAttendee({
               trainingCenterId,
@@ -181,12 +190,14 @@ export default function AttendeesPage() {
           } catch (err) {
             console.error(`Error fetching data for attendee ${attendee.id}:`, err);
             courseCounts[attendee.id] = 0;
+            pastCourseCounts[attendee.id] = 0;
             waitlistCounts[attendee.id] = 0;
           }
         }
       }
       
       setActiveCourseCount(courseCounts);
+      setPastCourseCount(pastCourseCounts);
       setWaitlistCount(waitlistCounts);
     } catch (error) {
       console.error("Error fetching attendee counts:", error);
@@ -367,65 +378,94 @@ export default function AttendeesPage() {
   const columns: Column[] = [
     {
       key: "index",
-      header: "#",
-      cell: (_, index) => index + 1
+      header: <div className="text-center w-full">#</div>,
+      cell: (_, index) => index + 1,
+      cellClassName: "text-center"
     },
     {
       key: "name",
-      header: "Name",
-      accessorKey: "name"
+      header: <div className="text-center w-full">Name</div>,
+      accessorKey: "name",
+      cellClassName: "text-center"
     },
     {
       key: "surname",
-      header: "Surname",
-      accessorKey: "surname"
+      header: <div className="text-center w-full">Surname</div>,
+      accessorKey: "surname",
+      cellClassName: "text-center"
     },
     {
       key: "email",
-      header: "Email",
-      accessorKey: "email"
+      header: <div className="text-center w-full">Email</div>,
+      accessorKey: "email",
+      cellClassName: "text-center"
     },
     {
       key: "telephone",
-      header: "Telephone",
-      accessorKey: "telephone"
+      header: <div className="text-center w-full">Telephone</div>,
+      accessorKey: "telephone",
+      cellClassName: "text-center"
     },
     {
       key: "rank",
-      header: "Rank",
-      cell: (row: Attendee) => RANK_LABELS[row.rank] || row.rank
+      header: <div className="text-center w-full">Rank</div>,
+      cell: (row: Attendee) => RANK_LABELS[row.rank] || row.rank,
+      cellClassName: "text-center"
     },
     {
       key: "courses",
-      header: "Courses",
+      header: <div className="text-center w-full">Active Courses</div>,
       cell: (row: Attendee) => {
         if (!row.id) {
-          return <span className="text-muted-foreground text-xs">No ID</span>;
+          return <span className="text-muted-foreground text-xs text-center w-full block">No ID</span>;
         }
-        
         if (isLoadingCounts) {
-          return <span className="text-muted-foreground text-xs">Loading...</span>;
+          return <span className="text-muted-foreground text-xs text-center w-full block">Loading...</span>;
         }
-        
         const count = activeCourseCount[row.id] || 0;
         return (
-          <Badge variant={count > 0 ? "default" : "outline"} className="whitespace-nowrap">
-            <BookOpen className="h-3 w-3 mr-1" />
-            {count}
-          </Badge>
+          <div className="flex justify-center w-full">
+            <Badge variant={count > 0 ? "default" : "outline"} className="whitespace-nowrap">
+              <BookOpen className="h-3 w-3 mr-1" />
+              {count}
+            </Badge>
+          </div>
         );
-      }
+      },
+      cellClassName: "text-center"
+    },
+    {
+      key: "pastCourses",
+      header: <div className="text-center w-full">Past Courses</div>,
+      cell: (row: Attendee) => {
+        if (!row.id) {
+          return <span className="text-muted-foreground text-xs text-center w-full block">No ID</span>;
+        }
+        if (isLoadingCounts) {
+          return <span className="text-muted-foreground text-xs text-center w-full block">Loading...</span>;
+        }
+        const count = pastCourseCount[row.id] || 0;
+        return (
+          <div className="flex justify-center w-full">
+            <Badge variant={count > 0 ? "secondary" : "outline"} className="whitespace-nowrap">
+              <BookOpen className="h-3 w-3 mr-1" />
+              {count}
+            </Badge>
+          </div>
+        );
+      },
+      cellClassName: "text-center"
     },
     {
       key: "waitlist",
-      header: "Waitlist",
+      header: <div className="text-center w-full">Waitlist</div>,
       cell: (row: Attendee) => {
         if (!row.id) {
-          return <span className="text-muted-foreground text-xs">No ID</span>;
+          return <span className="text-muted-foreground text-xs text-center w-full block">No ID</span>;
         }
         
         if (isLoadingCounts) {
-          return <span className="text-muted-foreground text-xs">Loading...</span>;
+          return <span className="text-muted-foreground text-xs text-center w-full block">Loading...</span>;
         }
         
         const count = waitlistCount[row.id] || 0;
@@ -435,46 +475,48 @@ export default function AttendeesPage() {
             {count}
           </Badge>
         );
-      }
+      },
+      cellClassName: "text-center"
     },
     {
       key: "remarks",
-      header: "Remarks",
+      header: <div className="text-center w-full">Remarks</div>,
       cell: (row: Attendee) => {
         if (!row.id) {
-          return <span className="text-muted-foreground text-xs">No ID</span>;
+          return <span className="text-muted-foreground text-xs text-center w-full block">No ID</span>;
         }
         
         if (isLoadingRemarks) {
-          return <span className="text-muted-foreground text-xs">Loading...</span>;
+          return <span className="text-muted-foreground text-xs text-center w-full block">Loading...</span>;
         }
         
         const remarks = attendeeRemarks[row.id] || [];
         
         if (remarks.length === 0) {
-          return <span className="text-muted-foreground text-xs">No remarks</span>;
+          return <span className="text-muted-foreground text-xs text-center w-full block">No remarks</span>;
         }
         
         // Show the most recent remark with a count
         const latestRemark = remarks[0];
         return (
-          <div className="max-w-[200px] truncate">
+          <div className="max-w-[200px] truncate text-center w-full">
             <span className="text-xs font-medium">
               {remarks.length > 1 ? `(${remarks.length}) ` : ''}
               {latestRemark.remarkText}
             </span>
           </div>
         );
-      }
+      },
+      cellClassName: "text-center"
     },
     {
       key: "actions",
-      header: "Actions",
+      header: <div className="text-center w-full">Actions</div>,
       cell: (row: Attendee) => {
         const remarks = row.id ? attendeeRemarks[row.id] || [] : [];
         
         return (
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 justify-center">
             <Button variant="ghost" size="icon" onClick={() => handleEdit(row)}>
               <Pencil className="h-4 w-4" />
             </Button>
@@ -530,7 +572,8 @@ export default function AttendeesPage() {
             </Button>
           </div>
         );
-      }
+      },
+      cellClassName: "text-center"
     }
   ]
 
@@ -578,7 +621,7 @@ export default function AttendeesPage() {
               onClick={() => navigateToAttendeeDetail(row)}
             >
               {columns.map((column) => (
-                <td key={column.key} className="px-2 py-1 text-xs">
+                <td key={column.key} className={`px-2 py-1 text-xs ${column.cellClassName || ""}`}>
                   {column.key === 'actions' ? (
                     // For the actions column, we want to prevent the row click event
                     <div onClick={(e) => e.stopPropagation()}>

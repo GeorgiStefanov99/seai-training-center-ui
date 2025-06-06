@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { getArchivedCourses } from "@/services/courseService"
+import { getArchivedCourseAttendees } from "@/services/courseAttendeeService"
 import { Course } from "@/types/course"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -44,6 +45,8 @@ export default function ArchivedCoursesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [enrolledCounts, setEnrolledCounts] = useState<Record<string, number>>({})
+  const [isLoadingEnrolled, setIsLoadingEnrolled] = useState(false)
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
@@ -61,6 +64,21 @@ export default function ArchivedCoursesPage() {
       const data = await getArchivedCourses(trainingCenterId)
       setCourses(data)
       setError(null)
+      // Fetch enrolled counts for each course
+      setIsLoadingEnrolled(true)
+      const counts: Record<string, number> = {}
+      await Promise.all(
+        data.map(async (course) => {
+          try {
+            const attendees = await getArchivedCourseAttendees({ trainingCenterId, courseId: course.id })
+            counts[course.id] = attendees.length
+          } catch {
+            counts[course.id] = 0
+          }
+        })
+      )
+      setEnrolledCounts(counts)
+      setIsLoadingEnrolled(false)
     } catch (error) {
       console.error("Error fetching archived courses:", error)
       setError("Failed to fetch archived courses. Please try again.")
@@ -191,29 +209,35 @@ export default function ArchivedCoursesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Start Date</TableHead>
-                      <TableHead>Start Time</TableHead>
-                      <TableHead>End Date</TableHead>
-                      <TableHead>End Time</TableHead>
-                      <TableHead>Enrolled</TableHead>
+                      <TableHead className="text-center w-12">#</TableHead>
+                      <TableHead className="text-center">Name</TableHead>
+                      <TableHead className="text-center">Start Date</TableHead>
+                      <TableHead className="text-center">Start Time</TableHead>
+                      <TableHead className="text-center">End Date</TableHead>
+                      <TableHead className="text-center">End Time</TableHead>
+                      <TableHead className="text-center">Enrolled</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredCourses.map((course) => (
+                    {filteredCourses.map((course, idx) => (
                       <TableRow 
                         key={course.id} 
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => router.push(`/courses/archive/detail?id=${course.id}`)}
                       >
-                        <TableCell className="font-medium">{course.name}</TableCell>
-                        <TableCell>{formatDate(course.startDate)}</TableCell>
-                        <TableCell>{formatTime(course.startTime)}</TableCell>
-                        <TableCell>{formatDate(course.endDate)}</TableCell>
-                        <TableCell>{formatTime(course.endTime)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <span>{course.maxSeats - course.availableSeats} / {course.maxSeats}</span>
+                        <TableCell className="text-center font-medium">{idx + 1}</TableCell>
+                        <TableCell className="text-center font-medium">{course.name}</TableCell>
+                        <TableCell className="text-center">{formatDate(course.startDate)}</TableCell>
+                        <TableCell className="text-center">{formatTime(course.startTime)}</TableCell>
+                        <TableCell className="text-center">{formatDate(course.endDate)}</TableCell>
+                        <TableCell className="text-center">{formatTime(course.endTime)}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            {isLoadingEnrolled ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            ) : (
+                              <span>{enrolledCounts[course.id] ?? 0} / {course.maxSeats}</span>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

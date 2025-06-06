@@ -76,6 +76,31 @@ export const getCourseAttendees = async ({
 }
 
 /**
+ * Get all archived attendees for a course
+ * @param params Object containing trainingCenterId and courseId
+ * @returns Promise with the list of attendees
+ */
+export const getArchivedCourseAttendees = async ({
+  trainingCenterId,
+  courseId
+}: CourseAttendeeApiParams): Promise<Attendee[]> => {
+  try {
+    const token = getAuthToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    
+    const response = await axios.get<Attendee[]>(
+      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/courses/${courseId}/attendees/archive`,
+      { headers }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching course attendees:", error);
+    // Return empty array as fallback
+    return [];
+  }
+}
+
+/**
  * Get a specific attendee for a course
  * @param params Object containing trainingCenterId, courseId, and attendeeId
  * @returns Promise with the attendee data
