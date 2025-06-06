@@ -221,10 +221,16 @@ export default function CoursesPage() {
               <h2 className="text-xl font-semibold">Active Courses</h2>
               <p className="text-muted-foreground">Manage all your active courses</p>
             </div>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Schedule Course
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => router.push("/courses/archive")}>
+                <Calendar className="mr-2 h-4 w-4" />
+                View Archive
+              </Button>
+              <Button onClick={() => setCreateDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Schedule Course
+              </Button>
+            </div>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-4">

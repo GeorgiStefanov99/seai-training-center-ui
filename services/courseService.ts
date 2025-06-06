@@ -16,6 +16,11 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.seai.c
 // API version path
 const API_VERSION_PATH = '/api/v1';
 
+// Archive related types
+export interface CreateArchiveRequest {
+  finishRemark: string;
+}
+
 /**
  * Get all courses for a training center
  * @param trainingCenterId Training center ID
@@ -179,6 +184,88 @@ export const getCoursesForTemplate = async (params: CourseApiParams): Promise<Co
     return response.data;
   } catch (error) {
     console.error(`Error fetching courses for template ID ${templateId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Archive a course
+ * @param params API parameters including training center ID and course ID
+ * @param data Archive request data including finish remark
+ * @returns Promise with void
+ */
+export const archiveCourse = async (params: CourseApiParams, data: CreateArchiveRequest): Promise<void> => {
+  const { trainingCenterId, courseId } = params;
+  
+  if (!trainingCenterId || !courseId) {
+    throw new Error('Training center ID and course ID are required');
+  }
+  
+  try {
+    const token = getAuthToken();
+    const headers = getAuthHeaders(token);
+    
+    await axios.put(
+      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/courses/${courseId}/archive`,
+      data,
+      { headers }
+    );
+  } catch (error) {
+    console.error(`Error archiving course ID ${courseId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Get all archived courses for a training center
+ * @param trainingCenterId Training center ID
+ * @returns Promise with array of archived courses
+ */
+export const getArchivedCourses = async (trainingCenterId: string): Promise<Course[]> => {
+  if (!trainingCenterId) {
+    throw new Error('Training center ID is required');
+  }
+  
+  try {
+    const token = getAuthToken();
+    const headers = getAuthHeaders(token);
+    
+    const response = await axios.get<GetCoursesResponse>(
+      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/courses/archive`,
+      { headers }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching archived courses:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get a specific archived course by ID
+ * @param params API parameters including training center ID and course ID
+ * @returns Promise with archived course data
+ */
+export const getArchivedCourseById = async (params: CourseApiParams): Promise<Course> => {
+  const { trainingCenterId, courseId } = params;
+  
+  if (!trainingCenterId || !courseId) {
+    throw new Error('Training center ID and course ID are required');
+  }
+  
+  try {
+    const token = getAuthToken();
+    const headers = getAuthHeaders(token);
+    
+    const response = await axios.get<Course>(
+      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/courses/archive/${courseId}`,
+      { headers }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching archived course ID ${courseId}:`, error);
     throw error;
   }
 };
