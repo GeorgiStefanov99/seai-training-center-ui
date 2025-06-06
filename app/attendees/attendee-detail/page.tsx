@@ -12,7 +12,7 @@ import { Course } from "@/types/course"
 import { getAttendeeById } from "@/services/attendeeService"
 import { RANK_LABELS } from "@/lib/rank-labels"
 import { useAuth } from "@/hooks/useAuth"
-import { Loader2, Mail, Phone, Award, Edit, MessageSquare, Plus, RefreshCw, Calendar, Trash2, ArrowLeft, Clock, ExternalLink, FileText, Check } from "lucide-react"
+import { Loader2, Mail, Phone, Award, Edit, MessageSquare, Plus, RefreshCw, Calendar, Trash2, ArrowLeft, Clock, ExternalLink, FileText, Check, Eye } from "lucide-react"
 import { toast } from "sonner"
 import { AttendeeDialog } from "@/components/dialogs/attendee-dialog"
 import { RemarkDialog } from "@/components/dialogs/remark-dialog"
@@ -21,7 +21,7 @@ import { Remark } from '@/types/remark'
 import { WaitlistRecord, CourseTemplate } from '@/types/course-template'
 import { getAttendeeRemarks } from "@/services/remarkService"
 import { format } from "date-fns"
-import { getAttendeeEnrolledCourses, removeAttendeeFromCourse } from "@/services/attendeeCourseService"
+import { getAttendeeEnrolledCourses, removeAttendeeFromCourse, getAttendeePastCourses } from "@/services/attendeeCourseService"
 import { getWaitlistRecordsByAttendee } from "@/services/waitlistService"
 import { getCourseTemplateById } from "@/services/courseTemplateService"
 import { WaitlistEditDialog } from "@/components/dialogs/waitlist-edit-dialog"
@@ -40,6 +40,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Table, TableBody, TableHead, TableHeader, TableRow, TableCell } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+
+// Utility to get badge variant for course status (available globally in this file)
+const getStatusBadgeVariant = (status?: string) => {
+  if (!status) return "outline";
+  switch (status) {
+    case "SCHEDULED":
+      return "outline";
+    case "IN_PROGRESS":
+      return "default";
+    case "COMPLETED":
+      return "success";
+    case "CANCELLED":
+      return "destructive";
+    default:
+      return "outline";
+  }
+};
 
 function AttendeeDetailContent() {
   const searchParams = useSearchParams()
@@ -58,8 +77,11 @@ function AttendeeDetailContent() {
   const [selectedRemark, setSelectedRemark] = useState<Remark | undefined>(undefined)
   
   // Courses state
-  const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([])
-  const [isLoadingCourses, setIsLoadingCourses] = useState(false)
+  const [activeCourses, setActiveCourses] = useState<Course[]>([])
+  const [pastCourses, setPastCourses] = useState<Course[]>([])
+  const [showPastCourses, setShowPastCourses] = useState(false)
+  const [isLoadingActiveCourses, setIsLoadingActiveCourses] = useState(false)
+  const [isLoadingPastCourses, setIsLoadingPastCourses] = useState(false)
   const [removeCourseDialogOpen, setRemoveCourseDialogOpen] = useState(false)
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   
@@ -106,20 +128,29 @@ function AttendeeDetailContent() {
   }
 
   // Function to fetch enrolled courses for the attendee
-  const fetchEnrolledCourses = async () => {
-    if (!trainingCenterId || !attendeeId) {
-      return
-    }
-    
-    setIsLoadingCourses(true)
+  const fetchActiveCourses = async () => {
+    if (!trainingCenterId || !attendeeId) return
     try {
-      const data = await getAttendeeEnrolledCourses({ trainingCenterId, attendeeId: attendeeId as string })
-      setEnrolledCourses(data)
-    } catch (err) {
-      console.error('Error fetching enrolled courses:', err)
-      toast.error('Failed to load enrolled courses. Please try again.')
+      setIsLoadingActiveCourses(true)
+      const courses = await getAttendeeEnrolledCourses({ trainingCenterId, attendeeId })
+      setActiveCourses(courses)
+    } catch (error) {
+      console.error("Error fetching active courses:", error)
     } finally {
-      setIsLoadingCourses(false)
+      setIsLoadingActiveCourses(false)
+    }
+  }
+
+  const fetchPastCourses = async () => {
+    if (!trainingCenterId || !attendeeId) return
+    try {
+      setIsLoadingPastCourses(true)
+      const courses = await getAttendeePastCourses({ trainingCenterId, attendeeId })
+      setPastCourses(courses)
+    } catch (error) {
+      console.error("Error fetching past courses:", error)
+    } finally {
+      setIsLoadingPastCourses(false)
     }
   }
   
@@ -284,7 +315,7 @@ function AttendeeDetailContent() {
       })
       
       toast.success(`Attendee removed from ${selectedCourse.name}`)
-      fetchEnrolledCourses() // Refresh the courses list
+      fetchActiveCourses() // Refresh the courses list
     } catch (err) {
       console.error('Error removing attendee from course:', err)
       toast.error('Failed to remove attendee from course. Please try again.')
@@ -322,7 +353,7 @@ function AttendeeDetailContent() {
         // After fetching attendee, fetch their remarks, courses and documents
         await Promise.all([
           fetchRemarks(),
-          fetchEnrolledCourses(),
+          fetchActiveCourses(),
           fetchWaitlistRecords(),
           fetchDocuments()
         ])
@@ -336,6 +367,20 @@ function AttendeeDetailContent() {
 
     fetchAttendee()
   }, [trainingCenterId, attendeeId])
+
+  // Always fetch active courses when attendee or training center changes
+  useEffect(() => {
+    if (attendeeId) {
+      fetchActiveCourses();
+    }
+  }, [trainingCenterId, attendeeId]);
+
+  // Only fetch past courses when toggled on
+  useEffect(() => {
+    if (attendeeId && showPastCourses) {
+      fetchPastCourses();
+    }
+  }, [trainingCenterId, attendeeId, showPastCourses]);
 
   const handleEditSuccess = async () => {
     if (!trainingCenterId || !attendeeId) return
@@ -460,6 +505,14 @@ function AttendeeDetailContent() {
   const getInitials = (name?: string, surname?: string) => {
     if (!name && !surname) return "?"
     return `${name?.[0] || ""}${surname?.[0] || ""}`
+  }
+
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), "MMM d, yyyy")
+    } catch (error) {
+      return dateString
+    }
   }
 
   if (isLoading) {
@@ -596,11 +649,11 @@ function AttendeeDetailContent() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-primary/5 p-4 rounded-lg">
                     <h3 className="text-sm font-medium text-muted-foreground">Courses Enrolled</h3>
-                    <p className="text-2xl font-bold">{enrolledCourses?.length || 0}</p>
+                    <p className="text-2xl font-bold">{activeCourses?.length || 0}</p>
                   </div>
                   <div className="bg-primary/5 p-4 rounded-lg">
                     <h3 className="text-sm font-medium text-muted-foreground">Courses Completed</h3>
-                    <p className="text-2xl font-bold">{enrolledCourses?.filter(course => course.status === 'COMPLETED').length || 0}</p>
+                    <p className="text-2xl font-bold">{activeCourses?.filter(course => course.status === 'COMPLETED').length || 0}</p>
                   </div>
                   <div className="bg-primary/5 p-4 rounded-lg">
                     <h3 className="text-sm font-medium text-muted-foreground">Quiz Average Score</h3>
@@ -688,84 +741,148 @@ function AttendeeDetailContent() {
                   <CardTitle>Enrolled Courses</CardTitle>
                   <CardDescription>Courses the attendee is currently enrolled in or has completed</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={fetchEnrolledCourses} disabled={isLoadingCourses}>
-                  {isLoadingCourses ? (
+                <Button variant="outline" size="sm" onClick={fetchActiveCourses} disabled={isLoadingActiveCourses}>
+                  {isLoadingActiveCourses ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <RefreshCw className="h-4 w-4 mr-1" />
                   )}
-                  {isLoadingCourses ? "Loading..." : "Refresh"}
+                  {isLoadingActiveCourses ? "Loading..." : "Refresh"}
                 </Button>
               </CardHeader>
               <CardContent>
-                {isLoadingCourses ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-                ) : enrolledCourses.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <div className="rounded-full bg-muted p-3">
-                      <Award className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                    <h3 className="mt-4 text-lg font-medium">No Courses Yet</h3>
-                    <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-                      This attendee is not enrolled in any courses yet. Courses will appear here once they are assigned.
-                    </p>
+                <div className="flex items-center gap-2 mb-2">
+                  <h2 className="text-xl font-semibold">Courses</h2>
+                  <Button
+                    variant={showPastCourses ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => setShowPastCourses(false)}
+                  >
+                    Active Courses
+                  </Button>
+                  <Button
+                    variant={showPastCourses ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowPastCourses(true)}
+                  >
+                    Past Courses
+                  </Button>
+                </div>
+                {showPastCourses ? (
+                  <div>
+                    {isLoadingPastCourses ? (
+                      <div className="flex justify-center items-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : pastCourses.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-medium">No past courses</h3>
+                        <p className="text-muted-foreground mb-4">
+                          This attendee hasn't completed any courses yet.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-center w-12">#</TableHead>
+                              <TableHead className="text-center">Name</TableHead>
+                              <TableHead className="text-center">Start Date</TableHead>
+                              <TableHead className="text-center">End Date</TableHead>
+                              <TableHead className="text-center">Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {pastCourses.map((course, idx) => (
+                              <TableRow
+                                key={course.id}
+                                className="cursor-pointer hover:bg-muted/50"
+                                onClick={() => router.push(`/courses/archive/detail?id=${course.id}`)}
+                              >
+                                <TableCell className="text-center font-medium">{idx + 1}</TableCell>
+                                <TableCell className="text-center font-medium">{course.name}</TableCell>
+                                <TableCell className="text-center">{formatDate(course.startDate)}</TableCell>
+                                <TableCell className="text-center">{formatDate(course.endDate)}</TableCell>
+                                <TableCell className="text-center">
+                                  <Badge variant={getStatusBadgeVariant(course.status)}>
+                                    {course.status ? course.status.replace('_', ' ') : 'Unknown'}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {enrolledCourses.map((course) => (
-                      <Card key={course.id} className="overflow-hidden">
-                        <CardHeader className="bg-muted/50 py-3 px-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="text-base">{course.name}</CardTitle>
-                            </div>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleRemoveFromCourse(course)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Remove
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="py-3 px-4">
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="font-medium flex items-center">
-                                <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                                Start
-                              </p>
-                              <p className="text-muted-foreground">
-                                {course.startDate ? format(new Date(course.startDate), 'MMM d, yyyy') : 'Not scheduled'}
-                              </p>
-                              {course.startTime && (
-                                <p className="text-muted-foreground text-xs mt-1">
-                                  at {course.startTime}
-                                </p>
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium flex items-center">
-                                <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                                End
-                              </p>
-                              <p className="text-muted-foreground">
-                                {course.endDate ? format(new Date(course.endDate), 'MMM d, yyyy') : 'Not scheduled'}
-                              </p>
-                              {course.endTime && (
-                                <p className="text-muted-foreground text-xs mt-1">
-                                  at {course.endTime}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                  <div>
+                    {isLoadingActiveCourses ? (
+                      <div className="flex justify-center items-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : activeCourses.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-medium">No active courses</h3>
+                        <p className="text-muted-foreground mb-4">
+                          This attendee is not enrolled in any active courses.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-center w-12">#</TableHead>
+                              <TableHead className="text-center">Name</TableHead>
+                              <TableHead className="text-center">Start Date</TableHead>
+                              <TableHead className="text-center">End Date</TableHead>
+                              <TableHead className="text-center">Status</TableHead>
+                              <TableHead className="text-center">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {activeCourses.map((course, idx) => (
+                              <TableRow key={course.id}>
+                                <TableCell className="text-center font-medium">{idx + 1}</TableCell>
+                                <TableCell className="text-center font-medium">{course.name}</TableCell>
+                                <TableCell className="text-center">{formatDate(course.startDate)}</TableCell>
+                                <TableCell className="text-center">{formatDate(course.endDate)}</TableCell>
+                                <TableCell className="text-center">
+                                  <Badge variant={getStatusBadgeVariant(course.status)}>
+                                    {course.status ? course.status.replace('_', ' ') : 'Unknown'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <div className="flex justify-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => router.push(`/courses/detail?id=${course.id}`)}
+                                      title="View Course"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleRemoveFromCourse(course)}
+                                      title="Remove from Course"
+                                      className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
