@@ -27,6 +27,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { getCourseTemplates } from "@/services/courseTemplateService";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function DocumentsPage() {
   const { user } = useAuth();
@@ -41,6 +44,9 @@ export default function DocumentsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<{ attendee: Attendee; doc: Document; files: FileItem[] } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [courseTemplates, setCourseTemplates] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("all");
 
   useEffect(() => {
     const fetchAllDocuments = async () => {
@@ -65,6 +71,28 @@ export default function DocumentsPage() {
     };
     if (trainingCenterId) fetchAllDocuments();
   }, [trainingCenterId]);
+
+  // Fetch course templates for filter
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      if (!trainingCenterId) return;
+      try {
+        const templates = await getCourseTemplates(trainingCenterId);
+        setCourseTemplates(templates);
+      } catch (err) {
+        // Optionally handle error
+      }
+    };
+    fetchTemplates();
+  }, [trainingCenterId]);
+
+  // Filtered rows based on selected template
+  const filteredRows =
+    selectedTemplate && selectedTemplate !== "all"
+      ? rows.filter(row =>
+          row.doc.name.toLowerCase().includes(selectedTemplate.toLowerCase())
+        )
+      : rows;
 
   const handlePreview = (row: { attendee: Attendee; doc: Document; files: FileItem[] }) => {
     setSelectedDocument(row);
@@ -140,7 +168,15 @@ export default function DocumentsPage() {
       key: "attendee",
       header: <div className="flex items-center justify-center w-full">Attendee</div>,
       cell: (row: any) => (
-        <div className="flex items-center justify-center w-full font-medium">{row.attendee.name} {row.attendee.surname}</div>
+        <div className="flex items-center justify-center w-full font-medium">
+          <a
+            href={`/attendees/attendee-detail?id=${row.attendee.id}`}
+            className="text-primary underline hover:text-primary/80 transition-colors"
+            onClick={e => e.stopPropagation()}
+          >
+            {row.attendee.name} {row.attendee.surname}
+          </a>
+        </div>
       ),
       cellClassName: "text-center align-middle px-3 py-2"
     },
@@ -157,14 +193,6 @@ export default function DocumentsPage() {
       header: <div className="flex items-center justify-center w-full">Number</div>,
       cell: (row: any) => (
         <div className="flex items-center justify-center w-full">{row.doc.number}</div>
-      ),
-      cellClassName: "text-center align-middle px-3 py-2"
-    },
-    {
-      key: "type",
-      header: <div className="flex items-center justify-center w-full">Type</div>,
-      cell: (row: any) => (
-        <div className="flex items-center justify-center w-full">{row.doc.type || '-'}</div>
       ),
       cellClassName: "text-center align-middle px-3 py-2"
     },
@@ -250,10 +278,28 @@ export default function DocumentsPage() {
         )}
         <div className="flex flex-col space-y-4">
           <h2 className="text-xl font-semibold">All Documents</h2>
+          {/* Course Template Filter */}
+          <div className="flex flex-wrap gap-4 items-center">
+            <div>
+              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                <SelectTrigger className="w-[250px]">
+                  <SelectValue placeholder="Filter by Course Template" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Templates</SelectItem>
+                  {courseTemplates.map((template: any) => (
+                    <SelectItem key={template.id} value={template.name}>
+                      {template.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
         <CustomTable
           columns={columns}
-          data={rows}
+          data={filteredRows}
           isLoading={isLoading}
           emptyState={
             <div className="text-center">
