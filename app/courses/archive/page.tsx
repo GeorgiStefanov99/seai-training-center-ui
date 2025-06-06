@@ -215,6 +215,7 @@ export default function ArchivedCoursesPage() {
                       <TableHead className="text-center">Start Time</TableHead>
                       <TableHead className="text-center">End Date</TableHead>
                       <TableHead className="text-center">End Time</TableHead>
+                      <TableHead className="text-center">Remark</TableHead>
                       <TableHead className="text-center">Enrolled</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -231,6 +232,7 @@ export default function ArchivedCoursesPage() {
                         <TableCell className="text-center">{formatTime(course.startTime)}</TableCell>
                         <TableCell className="text-center">{formatDate(course.endDate)}</TableCell>
                         <TableCell className="text-center">{formatTime(course.endTime)}</TableCell>
+                        <TableCell className="text-center">{course.finishRemark || '-'}</TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
                             {isLoadingEnrolled ? (

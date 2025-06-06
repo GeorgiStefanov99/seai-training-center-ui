@@ -217,14 +217,14 @@ export default function CoursesPage() {
   }
   
   // Confirm archive course
-  const confirmArchiveCourse = async () => {
+  const confirmArchiveCourse = async (remark: string) => {
     if (!selectedCourse || !trainingCenterId) return
     
     try {
       setIsArchiving(true)
       await archiveCourse(
         { trainingCenterId, courseId: selectedCourse.id },
-        { finishRemark: "Course archived by user" }
+        { finishRemark: remark }
       )
       
       toast.success("Course archived successfully")

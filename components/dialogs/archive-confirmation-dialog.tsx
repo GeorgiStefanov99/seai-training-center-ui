@@ -8,7 +8,7 @@ import { AlertCircle } from "lucide-react"
 interface ArchiveConfirmationDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onConfirm: () => void
+  onConfirm: (remark: string) => void
   courseName: string
   endDate: string
   isLoading?: boolean
@@ -23,6 +23,7 @@ export function ArchiveConfirmationDialog({
   isLoading = false
 }: ArchiveConfirmationDialogProps) {
   const [confirmationText, setConfirmationText] = useState("")
+  const [remark, setRemark] = useState("")
   const [error, setError] = useState<string | null>(null)
   
   const currentDate = new Date()
@@ -34,12 +35,13 @@ export function ArchiveConfirmationDialog({
       setError("Please type 'archive' to confirm")
       return
     }
-    onConfirm()
+    onConfirm(remark)
   }
   
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setConfirmationText("")
+      setRemark("")
       setError(null)
     }
     onOpenChange(newOpen)
@@ -75,12 +77,26 @@ export function ArchiveConfirmationDialog({
                 setConfirmationText(e.target.value)
                 setError(null)
               }}
-              className={error ? "border-destructive" : ""}
+              className={error && confirmationText.toLowerCase() !== "archive" ? "border-destructive" : ""}
             />
-            {error && (
-              <p className="text-sm text-destructive mt-1">{error}</p>
-            )}
           </div>
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">
+              Finish Remark (required):
+            </p>
+            <Input
+              value={remark}
+              onChange={e => {
+                setRemark(e.target.value)
+                setError(null)
+              }}
+              placeholder="Enter a finish remark for this course"
+              className={error && !remark.trim() ? "border-destructive" : ""}
+            />
+          </div>
+          {error && (
+            <p className="text-sm text-destructive mt-1">{error}</p>
+          )}
         </div>
         
         <DialogFooter>

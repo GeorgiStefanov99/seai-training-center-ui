@@ -29,6 +29,7 @@ export interface Course extends CourseBase {
   availableSeats: number;
   createdAt?: string;
   updatedAt?: string;
+  finishRemark?: string; // Optional finish remark for archived courses
 }
 
 // Response type for the GET courses endpoint
