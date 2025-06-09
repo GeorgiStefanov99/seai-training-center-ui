@@ -164,6 +164,30 @@ export function CourseSchedulingDialog({
       setSelectedWaitlistAttendees([]);
     }
   }, [open, template, template?.id, trainingCenterId]);
+  
+  // Reset form values when the dialog opens or when existingCourse changes
+  useEffect(() => {
+    if (open) {
+      // Reset form with values from existingCourse or template
+      form.reset({
+        name: existingCourse?.name || template?.name || "",
+        startDateStr: existingCourse ? format(new Date(existingCourse.startDate), "dd/MM/yyyy") : format(new Date(), "dd/MM/yyyy"),
+        endDateStr: existingCourse ? format(new Date(existingCourse.endDate), "dd/MM/yyyy") : format(addDays(new Date(), 5), "dd/MM/yyyy"),
+        startTime: existingCourse?.startTime ? formatTime(existingCourse.startTime) : "09:00",
+        endTime: existingCourse?.endTime ? formatTime(existingCourse.endTime) : "17:00",
+        price: existingCourse?.price || template?.price || 0,
+        currency: existingCourse?.currency || template?.currency || "USD",
+        maxSeats: existingCourse?.maxSeats || template?.maxSeats || 10,
+        description: existingCourse?.description || template?.description || "",
+      });
+      
+      console.log("Form reset with values:", {
+        existingCourse,
+        template,
+        formValues: form.getValues()
+      });
+    }
+  }, [open, existingCourse, template, form]);
 
   // Toggle selection of waitlist attendee
   const toggleWaitlistAttendee = (attendeeId: string) => {
