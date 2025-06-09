@@ -10,8 +10,8 @@ import Script from "next/script"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "SeAI Maritime Management",
-  description: "Comprehensive maritime management platform",
+  title: "SeAI Training Center",
+  description: "Comprehensive management platform for maritime training",
 }
 
 export default function RootLayout({

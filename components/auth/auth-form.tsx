@@ -53,7 +53,7 @@ export function AuthForm() {
       }
 
       // Use login function to set cookies and localStorage
-      await login(data.manningAgentId, data.accessToken, email)
+      await login(data.trainingCenterId, data.accessToken, email)
       toast.success("Login successful")
       
       // Use direct navigation instead of router for better static export compatibility
@@ -69,7 +69,7 @@ export function AuthForm() {
   return (
     <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
       <div className="flex flex-col space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Manning Agent Login</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Training Center Login</h1>
         <p className="text-sm text-muted-foreground">Enter your credentials to continue</p>
       </div>
       <form onSubmit={handleSubmit}>

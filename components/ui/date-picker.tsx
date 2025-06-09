@@ -15,9 +15,10 @@ import {
 interface DatePickerProps {
   value?: Date
   onChange?: (date?: Date) => void
+  disabled?: (date: Date) => boolean
 }
 
-export function DatePicker({ value, onChange }: DatePickerProps) {
+export function DatePicker({ value, onChange, disabled }: DatePickerProps) {
   const [calendarOpen, setCalendarOpen] = React.useState(false);
   const yearsToShow = 10; // Show 10 years before and after current year
   
@@ -77,6 +78,7 @@ export function DatePicker({ value, onChange }: DatePickerProps) {
           mode="single"
           selected={value}
           onSelect={onChange}
+          disabled={disabled}
           initialFocus
           className="rounded-b-md"
         />
