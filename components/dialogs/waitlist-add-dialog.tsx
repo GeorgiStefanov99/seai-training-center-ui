@@ -42,7 +42,7 @@ import { AttendeeForm } from "@/components/forms/attendee-form"
 
 // Define the form schema with validation for when courseTemplateId is provided
 const baseFormSchema = {
-  attendeeId: z.string().min(1, "Attendee is required"),
+  attendeeIds: z.array(z.string()).min(1, "At least one attendee is required"),
   status: z.enum(["WAITING", "CONFIRMED", "DELETED"] as const),
 };
 
@@ -92,7 +92,7 @@ export function WaitlistAddDialog({
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      attendeeId: "",
+      attendeeIds: [],
       status: "CONFIRMED",
       ...(courseTemplateId === null && { courseTemplateId: "" }),
     },
@@ -136,7 +136,7 @@ export function WaitlistAddDialog({
     }
   }, [open, trainingCenterId, courseTemplateId]);
 
-  // Handle form submission for existing attendee
+  // Handle form submission for existing attendees
   const onSubmit = async (data: FormValues) => {
     if (!trainingCenterId) {
       toast.error("Missing training center ID");
@@ -151,40 +151,58 @@ export function WaitlistAddDialog({
       return;
     }
 
-    // Use either the selected existing attendee or the newly created one
-    const attendeeId = activeTab === "existing" ? data.attendeeId : newAttendeeId;
+    // Get the list of attendee IDs to process
+    const attendeeIdList = activeTab === "existing" ? data.attendeeIds : (newAttendeeId ? [newAttendeeId] : []);
     
-    if (!attendeeId) {
-      toast.error("Attendee is required");
+    if (attendeeIdList.length === 0) {
+      toast.error("At least one attendee is required");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Create a new waitlist record for the attendee
-      // For existing attendees, the API only expects a simple status payload
+      // Create a new waitlist record for each attendee
       const payload = {
         status: data.status
       };
       
-      console.log('Creating waitlist record with status:', payload);
+      // Track successful and failed additions
+      let successCount = 0;
+      let failureCount = 0;
       
-      await createWaitlistRecordForAttendee({
-        trainingCenterId,
-        attendeeId,
-        courseTemplateId: templateId
-      }, payload);
+      // Process each attendee in sequence
+      for (const attendeeId of attendeeIdList) {
+        try {
+          await createWaitlistRecordForAttendee({
+            trainingCenterId,
+            attendeeId,
+            courseTemplateId: templateId
+          }, payload);
+          successCount++;
+        } catch (error) {
+          console.error(`Error adding attendee ${attendeeId} to waitlist:`, error);
+          failureCount++;
+        }
+      }
       
-      toast.success("Attendee added to waitlist successfully");
-      form.reset();
-      setActiveTab("existing");
-      setNewAttendeeId(null);
-      onSuccess();
-      onOpenChange(false);
+      // Show appropriate toast message based on results
+      if (successCount > 0 && failureCount === 0) {
+        toast.success(`${successCount} ${successCount === 1 ? 'attendee' : 'attendees'} added to waitlist successfully`);
+        form.reset();
+        setActiveTab("existing");
+        setNewAttendeeId(null);
+        onSuccess();
+        onOpenChange(false);
+      } else if (successCount > 0 && failureCount > 0) {
+        toast.warning(`${successCount} added successfully, but ${failureCount} failed. Please check and try again for the failed ones.`);
+        onSuccess(); // Still trigger success to refresh the parent component
+      } else {
+        toast.error("Failed to add attendees to waitlist. Please try again.");
+      }
     } catch (error) {
-      console.error("Error adding attendee to waitlist:", error);
-      toast.error("Failed to add attendee to waitlist. Please try again.");
+      console.error("Error in batch processing attendees:", error);
+      toast.error("Failed to process attendees. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -217,8 +235,8 @@ export function WaitlistAddDialog({
       // Switch back to the main form to complete adding to waitlist
       setActiveTab("existing");
       
-      // Pre-select the newly created attendee
-      form.setValue("attendeeId", newAttendee.id);
+      // Add the newly created attendee to the selected attendees list
+      form.setValue("attendeeIds", [newAttendee.id]);
     } catch (error) {
       console.error("Error creating new attendee:", error);
       toast.error("Failed to create new attendee. Please try again.");
@@ -269,30 +287,68 @@ export function WaitlistAddDialog({
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
                     control={form.control}
-                    name="attendeeId"
+                    name="attendeeIds"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Attendee</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={newAttendeeId ? newAttendeeId : field.value}
-                          disabled={isSubmitting}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select an attendee" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {attendees.map((attendee) => (
-                              <SelectItem key={attendee.id} value={attendee.id}>
-                                {attendee.name} {attendee.surname} ({formatRank(attendee.rank)})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>Attendees</FormLabel>
+                        <div className="relative">
+                          <Select 
+                            onValueChange={(value) => {
+                              // Add the selected value to the array if it's not already there
+                              if (!field.value.includes(value)) {
+                                field.onChange([...field.value, value]);
+                              }
+                            }}
+                            disabled={isSubmitting}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select attendees" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {attendees
+                                .filter(attendee => !field.value.includes(attendee.id))
+                                .map((attendee) => (
+                                <SelectItem key={attendee.id} value={attendee.id}>
+                                  {attendee.name} {attendee.surname} ({formatRank(attendee.rank)})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {/* Display selected attendees with remove option */}
+                        {field.value.length > 0 && (
+                          <div className="mt-2 space-y-2">
+                            <p className="text-sm font-medium">Selected Attendees:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {field.value.map(attendeeId => {
+                                const attendee = attendees.find(a => a.id === attendeeId);
+                                return attendee ? (
+                                  <div key={attendeeId} className="flex items-center bg-muted rounded-md px-2 py-1 text-xs">
+                                    <span>{attendee.name} {attendee.surname}</span>
+                                    <Button 
+                                      type="button" 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-4 w-4 p-0 ml-1"
+                                      onClick={() => {
+                                        field.onChange(field.value.filter(id => id !== attendeeId));
+                                      }}
+                                    >
+                                      <span className="sr-only">Remove</span>
+                                      ×
+                                    </Button>
+                                  </div>
+                                ) : null;
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        
                         <FormDescription>
-                          The attendee to add to the waitlist
+                          Select multiple attendees to add to the waitlist
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
