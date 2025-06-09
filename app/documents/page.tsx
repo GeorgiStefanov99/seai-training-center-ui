@@ -301,6 +301,64 @@ export default function DocumentsPage() {
           columns={columns}
           data={filteredRows}
           isLoading={isLoading}
+          rowRender={(row, index) => (
+            <tr 
+              key={row.doc.id || index} 
+              className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 1 ? 'bg-muted/30' : ''}`}
+            >
+              <td className="px-3 py-2 text-xs text-center">{index + 1}</td>
+              <td className="px-3 py-2 text-xs text-center">
+                <a
+                  href={`/attendees/attendee-detail?id=${row.attendee.id}`}
+                  className="text-primary underline hover:text-primary/80 transition-colors"
+                  onClick={e => e.stopPropagation()}
+                >
+                  {row.attendee.name} {row.attendee.surname}
+                </a>
+              </td>
+              <td className="px-3 py-2 text-xs text-center font-medium">{row.doc.name}</td>
+              <td className="px-3 py-2 text-xs text-center">{row.doc.number}</td>
+              <td className="px-3 py-2 text-xs text-center">{row.doc.issueDate ? format(new Date(row.doc.issueDate), 'PPP') : '-'}</td>
+              <td className="px-3 py-2 text-xs text-center">{row.doc.expiryDate ? format(new Date(row.doc.expiryDate), 'PPP') : '-'}</td>
+              <td className="px-3 py-2 text-xs text-center">
+                {row.doc.isVerified ? (
+                  <Badge variant="success"><Check className="h-4 w-4 mr-1 inline" />Verified</Badge>
+                ) : (
+                  <Badge variant="outline">Not Verified</Badge>
+                )}
+              </td>
+              <td className="px-3 py-2 text-xs text-center">{row.files.length}</td>
+              <td className="px-3 py-2 text-xs text-center align-middle">
+                <div className="flex items-center justify-center space-x-1">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    title="Preview Document" 
+                    onClick={() => handlePreview(row)}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    title="Edit Document" 
+                    onClick={() => handleEdit(row)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    title="Delete Document" 
+                    className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                    onClick={() => handleDelete(row)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          )}
           emptyState={
             <div className="text-center">
               <p className="text-muted-foreground mb-2">No documents found</p>

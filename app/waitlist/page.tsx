@@ -8,14 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { CustomTable } from "@/components/ui/custom-table"
 import { 
   Plus, 
   Search, 
@@ -32,7 +26,8 @@ import {
   ArrowLeftCircle,
   CheckCircle2,
   Clock,
-  ClipboardList
+  ClipboardList,
+  ChevronRight
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { getWaitlistRecords, deleteWaitlistRecord, updateWaitlistRecord } from "@/services/waitlistService"
@@ -401,6 +396,130 @@ function WaitlistContent() {
     }
   }
   
+  const columns = [
+    {
+      key: "index",
+      header: <div className="text-center w-full">#</div>,
+      cell: (_, index) => index + 1,
+      cellClassName: "text-center"
+    },
+    {
+      key: "name",
+      header: <div className="text-center w-full">Name</div>,
+      cell: (row) => `${row.attendeeResponse.name} ${row.attendeeResponse.surname}`,
+      cellClassName: "text-center"
+    },
+    {
+      key: "email",
+      header: <div className="text-center w-full">Email</div>,
+      cell: (row) => row.attendeeResponse.email,
+      cellClassName: "text-center"
+    },
+    {
+      key: "telephone",
+      header: <div className="text-center w-full">Telephone</div>,
+      cell: (row) => row.attendeeResponse.telephone,
+      cellClassName: "text-center"
+    },
+    {
+      key: "course",
+      header: <div className="text-center w-full">Course</div>,
+      cell: (row) => (row.templateId && courseTemplates[row.templateId]?.name) || 'Unknown Course',
+      cellClassName: "text-center"
+    },
+    {
+      key: "rank",
+      header: <div className="text-center w-full">Rank</div>,
+      cell: (row) => {
+        const rank = row.attendeeResponse.rank;
+        return rank ? rank.replace(/_/g, ' ') : '-';
+      },
+      cellClassName: "text-center"
+    },
+    {
+      key: "status",
+      header: <div className="text-center w-full">Status</div>,
+      cell: (row) => (
+        <Badge variant={getStatusBadgeVariant(row.status)}>
+          {row.status}
+        </Badge>
+      ),
+      cellClassName: "text-center"
+    },
+    {
+      key: "actions",
+      header: <div className="text-center w-full">Actions</div>,
+      cell: (row) => (
+        <div className="flex items-center justify-center gap-1">
+          {row.status === "WAITING" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => { e.stopPropagation(); handleUpdateWaitlistStatus(row, "CONFIRMED") }}
+              title="Confirm"
+              disabled={updatingWaitlistRecordId === row.id}
+            >
+              {updatingWaitlistRecordId === row.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRightCircle className="h-4 w-4 text-green-500" />
+              )}
+            </Button>
+          )}
+          {row.status === "CONFIRMED" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => { e.stopPropagation(); handleUpdateWaitlistStatus(row, "WAITING") }}
+              title="Return to Waiting"
+              disabled={updatingWaitlistRecordId === row.id}
+            >
+              {updatingWaitlistRecordId === row.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowLeftCircle className="h-4 w-4 text-amber-500" />
+              )}
+            </Button>
+          )}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={(e) => { e.stopPropagation(); handleCreateRemark(row) }}
+            title="View/Add Remarks"
+          >
+            <MessageSquare className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={(e) => { e.stopPropagation(); handleViewRecord(row) }}
+            title="View Course"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={(e) => { e.stopPropagation(); handleEditRecord(row) }}
+            title="Edit Record"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={(e) => { e.stopPropagation(); handleDeleteRecord(row) }}
+            className="text-destructive hover:text-destructive"
+            title="Delete Record"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+      cellClassName: "text-center"
+    }
+  ]
+  
   return (
     <PageLayout>
       <div className="container py-6 space-y-6">
@@ -484,193 +603,45 @@ function WaitlistContent() {
               </div>
             </div>
           </CardHeader>
-          
           <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center items-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : error ? (
-              <div className="text-center py-8 text-muted-foreground">
-                {error}
-              </div>
-            ) : filteredRecords.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                {searchQuery ? "No matching waitlist records found" : "No waitlist records yet"}
-              </div>
-            ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-center w-12">#</TableHead>
-                      <TableHead className="text-center">Name</TableHead>
-                      <TableHead className="text-center">Email</TableHead>
-                      <TableHead className="text-center">Telephone</TableHead>
-                      <TableHead className="text-center">Rank</TableHead>
-                      <TableHead className="text-center">Course</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRecords.map((record, idx) => (
-                      <React.Fragment key={record.id}>
-                        <TableRow>
-                          <TableCell className="text-center font-medium">{idx + 1}</TableCell>
-                          <TableCell className="text-center">{record.attendeeResponse.name} {record.attendeeResponse.surname}</TableCell>
-                          <TableCell className="text-center">{record.attendeeResponse.email}</TableCell>
-                          <TableCell className="text-center">{record.attendeeResponse.telephone || "N/A"}</TableCell>
-                          <TableCell className="text-center">{record.attendeeResponse.rank.replace(/_/g, " ")}</TableCell>
-                          <TableCell className="text-center">
-                            {(() => {
-                              const templateId = record.courseTemplateId || record.templateId;
-                              const template = templateId ? courseTemplates[templateId] : null;
-                              return template ? (
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{template.name}</span>
-                                  <span className="text-xs text-muted-foreground">{template.description?.substring(0, 30)}{template.description?.length > 30 ? '...' : ''}</span>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">Loading...</span>
-                              );
-                            })()}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Badge variant={getStatusBadgeVariant(record.status)}>
-                              {record.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex justify-center space-x-2">
-                              {/* Status update buttons */}
-                              {record.status === "WAITING" && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleUpdateWaitlistStatus(record, "CONFIRMED")}
-                                  title="Confirm Waitlist Record"
-                                  disabled={updatingWaitlistRecordId === record.id}
-                                >
-                                  {updatingWaitlistRecordId === record.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <ArrowRightCircle className="h-4 w-4 text-green-500" />
-                                  )}
-                                </Button>
-                              )}
-                              {record.status === "CONFIRMED" && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleUpdateWaitlistStatus(record, "WAITING")}
-                                  title="Return to Waiting"
-                                  disabled={updatingWaitlistRecordId === record.id}
-                                >
-                                  {updatingWaitlistRecordId === record.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <ArrowLeftCircle className="h-4 w-4 text-amber-500" />
-                                  )}
-                                </Button>
-                              )}
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleCreateRemark(record)}
-                                title="View/Add Remarks"
-                              >
-                                <MessageSquare className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleViewRecord(record)}
-                                title="View Course"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={() => handleEditRecord(record)}
-                                title="Edit Record"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={() => handleDeleteRecord(record)}
-                                className="text-destructive hover:text-destructive"
-                                title="Delete Record"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                        
-                        {/* Remarks section - only shown when expanded */}
-                        {expandedRemarkAttendeeId === record.attendeeResponse.id && (
-                          <TableRow>
-                            <TableCell colSpan={8} className="bg-muted/30 p-4">
-                              <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                  <h4 className="text-sm font-medium">Remarks for {record.attendeeResponse.name} {record.attendeeResponse.surname}</h4>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    onClick={handleAddRemark}
-                                    className="flex items-center gap-1"
-                                  >
-                                    <Plus className="h-3 w-3" /> Add Remark
-                                  </Button>
-                                </div>
-                                
-                                {isLoadingRemarks ? (
-                                  <div className="flex justify-center py-4">
-                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                  </div>
-                                ) : waitlistRemarks[record.attendeeResponse.id]?.length > 0 ? (
-                                  <div className="space-y-3">
-                                    {waitlistRemarks[record.attendeeResponse.id].map((remark) => (
-                                      <Card key={remark.id} className="overflow-hidden">
-                                        <CardHeader className="py-2 px-4 bg-muted/50 flex flex-row justify-between items-center">
-                                          <div>
-                                            <CardTitle className="text-sm font-medium">Remark</CardTitle>
-                                            <CardDescription className="text-xs">
-                                              Created: {remark.createdAt ? format(new Date(remark.createdAt), 'MMM d, yyyy HH:mm') : 'Unknown date'}
-                                              {remark.lastUpdatedAt && remark.lastUpdatedAt !== remark.createdAt && (
-                                                <span className="block">Updated: {format(new Date(remark.lastUpdatedAt), 'MMM d, yyyy HH:mm')}</span>
-                                              )}
-                                            </CardDescription>
-                                          </div>
-                                          <div className="flex gap-1">
-                                            <Button variant="ghost" size="icon" onClick={() => handleEditRemark(remark)}>
-                                              <Edit className="h-3 w-3" />
-                                            </Button>
-                                          </div>
-                                        </CardHeader>
-                                        <CardContent className="py-2 px-4">
-                                          <p className="text-sm">{remark.remarkText}</p>
-                                        </CardContent>
-                                      </Card>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-sm text-muted-foreground">No remarks yet. Click 'Add Remark' to create one.</p>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <CustomTable
+              columns={columns}
+              data={filteredRecords}
+              isLoading={isLoading}
+              rowRender={(row, index) => (
+                <tr 
+                  key={row.id || index} 
+                  className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 0 ? '' : 'bg-muted/30'}`}
+                  onClick={() => handleViewRecord(row)}
+                >
+                  {columns.map((column) => (
+                    <td key={column.key} className={`px-2 py-1 text-xs ${column.cellClassName || ""}`}>
+                      {column.key === 'actions' ? (
+                        // For the actions column, we want to prevent the row click event
+                        <div onClick={(e) => e.stopPropagation()}>
+                          {column.cell ? column.cell(row, index) : null}
+                        </div>
+                      ) : (
+                        column.cell
+                          ? column.cell(row, index)
+                          : (column.accessorKey ? (row as any)[column.accessorKey] : null)
+                      )}
+                    </td>
+                  ))}
+                  <td className="px-2 py-1 text-xs text-muted-foreground">
+                    <ChevronRight className="h-4 w-4" />
+                  </td>
+                </tr>
+              )}
+              emptyState={
+                <div className="text-center">
+                  <p className="text-muted-foreground mb-2">No waitlist records found</p>
+                  <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
+                    Add your first waitlist record
+                  </Button>
+                </div>
+              }
+            />
           </CardContent>
         </Card>
         

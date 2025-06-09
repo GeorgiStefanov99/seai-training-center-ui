@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { CustomTable } from "@/components/ui/custom-table"
 import { 
   Search, 
   Loader2, 
@@ -190,64 +191,103 @@ export default function ArchivedCoursesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center items-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : filteredCourses.length === 0 ? (
-              <div className="text-center py-8">
-                <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">No archived courses found</h3>
-                <p className="text-muted-foreground mb-4">
-                  {courses.length === 0
-                    ? "You haven't archived any courses yet."
-                    : "No courses match your search criteria."}
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-center w-12">#</TableHead>
-                      <TableHead className="text-center">Name</TableHead>
-                      <TableHead className="text-center">Start Date</TableHead>
-                      <TableHead className="text-center">Start Time</TableHead>
-                      <TableHead className="text-center">End Date</TableHead>
-                      <TableHead className="text-center">End Time</TableHead>
-                      <TableHead className="text-center">Remark</TableHead>
-                      <TableHead className="text-center">Enrolled</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredCourses.map((course, idx) => (
-                      <TableRow 
-                        key={course.id} 
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => router.push(`/courses/archive/detail?id=${course.id}`)}
-                      >
-                        <TableCell className="text-center font-medium">{idx + 1}</TableCell>
-                        <TableCell className="text-center font-medium">{course.name}</TableCell>
-                        <TableCell className="text-center">{formatDate(course.startDate)}</TableCell>
-                        <TableCell className="text-center">{formatTime(course.startTime)}</TableCell>
-                        <TableCell className="text-center">{formatDate(course.endDate)}</TableCell>
-                        <TableCell className="text-center">{formatTime(course.endTime)}</TableCell>
-                        <TableCell className="text-center">{course.finishRemark || '-'}</TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            {isLoadingEnrolled ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                            ) : (
-                              <span>{enrolledCounts[course.id] ?? 0} / {course.maxSeats}</span>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <CustomTable
+              columns={[
+                {
+                  key: "index",
+                  header: "#",
+                  cell: (_, index) => index + 1,
+                  cellClassName: "text-center font-medium"
+                },
+                {
+                  key: "name",
+                  header: "Name",
+                  accessorKey: "name",
+                  cellClassName: "text-center font-medium"
+                },
+                {
+                  key: "startDate",
+                  header: "Start Date",
+                  cell: (row) => formatDate(row.startDate),
+                  cellClassName: "text-center"
+                },
+                {
+                  key: "startTime",
+                  header: "Start Time",
+                  cell: (row) => formatTime(row.startTime),
+                  cellClassName: "text-center"
+                },
+                {
+                  key: "endDate",
+                  header: "End Date",
+                  cell: (row) => formatDate(row.endDate),
+                  cellClassName: "text-center"
+                },
+                {
+                  key: "endTime",
+                  header: "End Time",
+                  cell: (row) => formatTime(row.endTime),
+                  cellClassName: "text-center"
+                },
+                {
+                  key: "remark",
+                  header: "Remark",
+                  cell: (row) => row.finishRemark || '-',
+                  cellClassName: "text-center"
+                },
+                {
+                  key: "enrolled",
+                  header: "Enrolled",
+                  cell: (row) => (
+                    <div className="flex items-center justify-center gap-1">
+                      {isLoadingEnrolled ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      ) : (
+                        <span>{enrolledCounts[row.id] ?? 0} / {row.maxSeats}</span>
+                      )}
+                    </div>
+                  ),
+                  cellClassName: "text-center"
+                }
+              ]}
+              data={filteredCourses}
+              isLoading={isLoading}
+              rowRender={(row, index) => (
+                <tr 
+                  key={row.id || index} 
+                  className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 1 ? 'bg-muted/30' : ''}`}
+                  onClick={() => router.push(`/courses/archive/detail?id=${row.id}`)}
+                >
+                  <td className="px-3 py-2 text-xs text-center">{index + 1}</td>
+                  <td className="px-3 py-2 text-xs text-center font-medium">{row.name}</td>
+                  <td className="px-3 py-2 text-xs text-center">{formatDate(row.startDate)}</td>
+                  <td className="px-3 py-2 text-xs text-center">{formatTime(row.startTime)}</td>
+                  <td className="px-3 py-2 text-xs text-center">{formatDate(row.endDate)}</td>
+                  <td className="px-3 py-2 text-xs text-center">{formatTime(row.endTime)}</td>
+                  <td className="px-3 py-2 text-xs text-center">{row.finishRemark || '-'}</td>
+                  <td className="px-3 py-2 text-xs text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      {isLoadingEnrolled ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      ) : (
+                        <span>{enrolledCounts[row.id] ?? 0} / {row.maxSeats}</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+              emptyState={
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium">No archived courses found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {courses.length === 0
+                      ? "You haven't archived any courses yet."
+                      : "No courses match your search criteria."}
+                  </p>
+                </div>
+              }
+            />
           </CardContent>
         </Card>
       </div>

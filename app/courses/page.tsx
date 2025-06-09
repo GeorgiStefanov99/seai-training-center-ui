@@ -6,14 +6,8 @@ import { PageLayout } from "@/components/page-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { CustomTable } from "@/components/ui/custom-table"
+import { Column } from "@/types/table"
 import { 
   Plus, 
   Search, 
@@ -25,7 +19,8 @@ import {
   MoreHorizontal,
   Users,
   Calendar,
-  Archive
+  Archive,
+  ChevronRight
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { getCourses, deleteCourse, archiveCourse } from "@/services/courseService"
@@ -238,6 +233,120 @@ export default function CoursesPage() {
     }
   }
   
+  const columns: Column[] = [
+    {
+      key: "index",
+      header: <div className="text-center w-full">#</div>,
+      cell: (_, index) => index + 1,
+      cellClassName: "text-center"
+    },
+    {
+      key: "name",
+      header: <div className="text-center w-full">Name</div>,
+      accessorKey: "name",
+      cellClassName: "text-center"
+    },
+    {
+      key: "startDate",
+      header: <div className="text-center w-full">Start Date</div>,
+      cell: (row) => formatDate(row.startDate),
+      cellClassName: "text-center"
+    },
+    {
+      key: "startTime",
+      header: <div className="text-center w-full">Start Time</div>,
+      cell: (row) => formatTime(row.startTime),
+      cellClassName: "text-center"
+    },
+    {
+      key: "endDate",
+      header: <div className="text-center w-full">End Date</div>,
+      cell: (row) => formatDate(row.endDate),
+      cellClassName: "text-center"
+    },
+    {
+      key: "endTime",
+      header: <div className="text-center w-full">End Time</div>,
+      cell: (row) => formatTime(row.endTime),
+      cellClassName: "text-center"
+    },
+    {
+      key: "status",
+      header: <div className="text-center w-full">Status</div>,
+      cell: (row) => (
+        <Badge variant={getStatusBadgeVariant(row.status)}>
+          {row.status ? row.status.replace('_', ' ') : 'Unknown'}
+        </Badge>
+      ),
+      cellClassName: "text-center"
+    },
+    {
+      key: "enrolled",
+      header: <div className="text-center w-full">Enrolled</div>,
+      cell: (row) => (
+        <div className="flex items-center justify-center gap-1">
+          <Users className="h-3 w-3" />
+          <span>{row.maxSeats - row.availableSeats} / {row.maxSeats}</span>
+        </div>
+      ),
+      cellClassName: "text-center"
+    },
+    {
+      key: "actions",
+      header: <div className="text-center w-full">Actions</div>,
+      cell: (row) => (
+        <div className="flex items-center justify-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditCourse(row);
+            }}
+            title="Edit Course"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleManageAttendees(row);
+            }}
+            title="Assign Seafarer"
+          >
+            <UserPlus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleArchiveCourse(row);
+            }}
+            title="Archive Course"
+          >
+            <Archive className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteCourse(row);
+            }}
+            title="Delete Course"
+            className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+      cellClassName: "text-center"
+    }
+  ]
+  
   return (
     <PageLayout title="Courses">
       <div className="space-y-6">
@@ -309,121 +418,44 @@ export default function CoursesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center items-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : filteredCourses.length === 0 ? (
-              <div className="text-center py-8">
-                <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">No courses found</h3>
-                <p className="text-muted-foreground mb-4">
-                  {courses.length === 0
-                    ? "You haven't scheduled any courses yet."
-                    : "No courses match your search criteria."}
-                </p>
-                {courses.length === 0 && (
-                  <Button onClick={() => setCreateDialogOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
+            <CustomTable
+              columns={columns}
+              data={filteredCourses}
+              isLoading={isLoading}
+              rowRender={(row, index) => (
+                <tr 
+                  key={row.id || index} 
+                  className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 0 ? '' : 'bg-muted/30'}`}
+                  onClick={() => router.push(`/courses/detail?id=${row.id}`)}
+                >
+                  {columns.map((column) => (
+                    <td key={column.key} className={`px-2 py-1 text-xs ${column.cellClassName || ""}`}>
+                      {column.key === 'actions' ? (
+                        // For the actions column, we want to prevent the row click event
+                        <div onClick={(e) => e.stopPropagation()}>
+                          {column.cell ? column.cell(row, index) : null}
+                        </div>
+                      ) : (
+                        column.cell
+                          ? column.cell(row, index)
+                          : (column.accessorKey ? (row as any)[column.accessorKey] : null)
+                      )}
+                    </td>
+                  ))}
+                  <td className="px-2 py-1 text-xs text-muted-foreground">
+                    <ChevronRight className="h-4 w-4" />
+                  </td>
+                </tr>
+              )}
+              emptyState={
+                <div className="text-center">
+                  <p className="text-muted-foreground mb-2">No courses found</p>
+                  <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
                     Schedule Your First Course
                   </Button>
-                )}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-center w-12">#</TableHead>
-                      <TableHead className="text-center">Name</TableHead>
-                      <TableHead className="text-center">Start Date</TableHead>
-                      <TableHead className="text-center">Start Time</TableHead>
-                      <TableHead className="text-center">End Date</TableHead>
-                      <TableHead className="text-center">End Time</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center">Enrolled</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredCourses.map((course, idx) => (
-                      <TableRow 
-                        key={course.id} 
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => router.push(`/courses/detail?id=${course.id}`)}
-                      >
-                        <TableCell className="text-center font-medium">{idx + 1}</TableCell>
-                        <TableCell className="text-center font-medium">{course.name}</TableCell>
-                        <TableCell className="text-center">{formatDate(course.startDate)}</TableCell>
-                        <TableCell className="text-center">{formatTime(course.startTime)}</TableCell>
-                        <TableCell className="text-center">{formatDate(course.endDate)}</TableCell>
-                        <TableCell className="text-center">{formatTime(course.endTime)}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={getStatusBadgeVariant(course.status)}>
-                            {course.status ? course.status.replace('_', ' ') : 'Unknown'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <Users className="h-3 w-3" />
-                            <span>{course.maxSeats - course.availableSeats} / {course.maxSeats}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditCourse(course);
-                              }}
-                              title="Edit Course"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleManageAttendees(course);
-                              }}
-                              title="Assign Seafarer"
-                            >
-                              <UserPlus className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleArchiveCourse(course);
-                              }}
-                              title="Archive Course"
-                            >
-                              <Archive className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteCourse(course);
-                              }}
-                              title="Delete Course"
-                              className="text-destructive hover:text-destructive/90 hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+                </div>
+              }
+            />
           </CardContent>
         </Card>
         
@@ -455,7 +487,7 @@ export default function CoursesPage() {
             existingCourse={selectedCourse}
           />
         )}
-
+        
         {/* Course attendees management dialog */}
         {selectedCourse && (
           <CourseAttendeesManagementDialog
