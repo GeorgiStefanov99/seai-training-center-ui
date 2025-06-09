@@ -245,6 +245,8 @@ export default function CoursesPage() {
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 20
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editCourseData, setEditCourseData] = useState<Course | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -545,6 +547,12 @@ export default function CoursesPage() {
     }
   ]
   
+  // Handle adding a new course
+  const handleAddNew = () => {
+    setEditCourseData(null)
+    setCreateDialogOpen(true)
+  }
+  
   return (
     <PageLayout title="Courses">
       <div className="space-y-6">
@@ -587,9 +595,9 @@ export default function CoursesPage() {
                   Weekly View
                 </Button>
               </div>
-              <Button onClick={() => setCreateDialogOpen(true)}>
+              <Button onClick={handleAddNew}>
                 <Plus className="mr-2 h-4 w-4" />
-                Schedule Course
+                Create Course
               </Button>
             </div>
           </div>
@@ -601,7 +609,10 @@ export default function CoursesPage() {
               <Input
                 placeholder="Search courses..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1); // Reset to first page when searching
+                }}
                 className="pl-8"
               />
             </div>
@@ -609,8 +620,11 @@ export default function CoursesPage() {
             {/* Status filter */}
             <div className="w-full sm:w-[200px]">
               <Select
-                value={statusFilter}
-                onValueChange={setStatusFilter}
+                value={statusFilter || ""}
+                onValueChange={(value) => {
+                  setStatusFilter(value || undefined);
+                  setCurrentPage(1); // Reset to first page when filtering
+                }}
               >
                 <SelectTrigger>
                   <div className="flex items-center">
@@ -619,7 +633,7 @@ export default function CoursesPage() {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">All Statuses</SelectItem>
+                  <SelectItem value="">All Statuses</SelectItem>
                   <SelectItem value="SCHEDULED">Scheduled</SelectItem>
                   <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                   <SelectItem value="COMPLETED">Completed</SelectItem>
@@ -629,7 +643,7 @@ export default function CoursesPage() {
             </div>
           </div>
         </div>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Courses</CardTitle>
@@ -641,7 +655,7 @@ export default function CoursesPage() {
             {viewMode === 'list' ? (
               <CustomTable
                 columns={columns}
-                data={filteredCourses}
+                data={filteredCourses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)}
                 isLoading={isLoading}
                 rowRender={(row, index) => (
                   <tr 
@@ -691,6 +705,29 @@ export default function CoursesPage() {
               </CourseActionsContext.Provider>
             )}
           </CardContent>
+          <div className="flex items-center justify-between border-t px-6 py-4">
+            <div className="text-sm text-muted-foreground">
+              Showing {Math.min(ITEMS_PER_PAGE, filteredCourses.length - (currentPage - 1) * ITEMS_PER_PAGE)} of {filteredCourses.length} courses
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage <= 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => prev + 1)}
+                disabled={currentPage * ITEMS_PER_PAGE >= filteredCourses.length}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         </Card>
         
         {/* Delete Confirmation Dialog */}

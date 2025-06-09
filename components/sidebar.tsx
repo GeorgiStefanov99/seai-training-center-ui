@@ -13,7 +13,8 @@ import {
   Calendar,
   Video,
   Archive,
-  FileText
+  FileText,
+  DollarSign
 } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -24,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth"
 const getMenuItems = (userType: string) => {
   const commonItems = [
     { name: "Dashboard", icon: BarChart2, href: "/dashboard" },
+    { name: "Financial Dashboard", icon: DollarSign, href: "/financial-dashboard" },
     { name: "Attendees", icon: User, href: "/attendees" },
     { name: "Course Templates", icon: BookOpen, href: "/course-templates" },
     { name: "Courses", icon: Calendar, href: "/courses" },

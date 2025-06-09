@@ -60,6 +60,8 @@ export default function AttendeesPage() {
   // Remarks data
   const [attendeeRemarks, setAttendeeRemarks] = useState<Record<string, Remark[]>>({})
   const [isLoadingRemarks, setIsLoadingRemarks] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 20
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
@@ -612,7 +614,7 @@ export default function AttendeesPage() {
         
         <CustomTable
           columns={columns}
-          data={filteredAttendees}
+          data={filteredAttendees.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)}
           isLoading={isLoading}
           rowRender={(row, index) => (
             <tr 
@@ -648,6 +650,31 @@ export default function AttendeesPage() {
             </div>
           }
         />
+        
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {Math.min(ITEMS_PER_PAGE, filteredAttendees.length - (currentPage - 1) * ITEMS_PER_PAGE)} of {filteredAttendees.length} attendees
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage <= 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => prev + 1)}
+              disabled={currentPage * ITEMS_PER_PAGE >= filteredAttendees.length}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
         
         {/* Create Attendee Dialog */}
         <AttendeeDialog
