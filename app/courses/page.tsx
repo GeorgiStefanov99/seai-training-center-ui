@@ -143,7 +143,7 @@ const WeeklyPreview: React.FC<WeeklyPreviewProps> = ({ courses, isLoading }) => 
                       <td className="px-2 py-1 text-xs text-center">
                         <div className="flex items-center justify-center">
                           <Users className="h-3 w-3 mr-1" />
-                          {course.attendees?.length || 0}
+                          {course.enrolledAttendees || 0}
                         </div>
                       </td>
                       <td className="px-2 py-1 text-xs text-center">
@@ -242,7 +242,7 @@ export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([])
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editCourseData, setEditCourseData] = useState<Course | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -305,6 +305,13 @@ export default function CoursesPage() {
     if (statusFilter && statusFilter !== "ALL") {
       filtered = filtered.filter(course => course.status === statusFilter)
     }
+    
+    // Sort courses by start date in ascending order
+    filtered = filtered.sort((a, b) => {
+      const dateA = new Date(a.startDate).getTime()
+      const dateB = new Date(b.startDate).getTime()
+      return dateA - dateB
+    })
     
     setFilteredCourses(filtered)
   }, [courses, searchTerm, statusFilter])
