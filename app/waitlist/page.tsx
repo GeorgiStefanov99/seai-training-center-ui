@@ -400,37 +400,37 @@ function WaitlistContent() {
     {
       key: "index",
       header: <div className="text-center w-full">#</div>,
-      cell: (_, index) => index + 1,
+      cell: (_: WaitlistRecord, index: number) => index + 1,
       cellClassName: "text-center"
     },
     {
       key: "name",
       header: <div className="text-center w-full">Name</div>,
-      cell: (row) => `${row.attendeeResponse.name} ${row.attendeeResponse.surname}`,
+      cell: (row: WaitlistRecord) => `${row.attendeeResponse.name} ${row.attendeeResponse.surname}`,
       cellClassName: "text-center"
     },
     {
       key: "email",
       header: <div className="text-center w-full">Email</div>,
-      cell: (row) => row.attendeeResponse.email,
+      cell: (row: WaitlistRecord) => row.attendeeResponse.email,
       cellClassName: "text-center"
     },
     {
       key: "telephone",
       header: <div className="text-center w-full">Telephone</div>,
-      cell: (row) => row.attendeeResponse.telephone,
+      cell: (row: WaitlistRecord) => row.attendeeResponse.telephone,
       cellClassName: "text-center"
     },
     {
       key: "course",
       header: <div className="text-center w-full">Course</div>,
-      cell: (row) => (row.templateId && courseTemplates[row.templateId]?.name) || 'Unknown Course',
+      cell: (row: WaitlistRecord) => (row.templateId && courseTemplates[row.templateId]?.name) || 'Unknown Course',
       cellClassName: "text-center"
     },
     {
       key: "rank",
       header: <div className="text-center w-full">Rank</div>,
-      cell: (row) => {
+      cell: (row: WaitlistRecord) => {
         const rank = row.attendeeResponse.rank;
         return rank ? rank.replace(/_/g, ' ') : '-';
       },
@@ -439,7 +439,7 @@ function WaitlistContent() {
     {
       key: "status",
       header: <div className="text-center w-full">Status</div>,
-      cell: (row) => (
+      cell: (row: WaitlistRecord) => (
         <Badge variant={getStatusBadgeVariant(row.status)}>
           {row.status}
         </Badge>
@@ -449,7 +449,7 @@ function WaitlistContent() {
     {
       key: "actions",
       header: <div className="text-center w-full">Actions</div>,
-      cell: (row) => (
+      cell: (row: WaitlistRecord) => (
         <div className="flex items-center justify-center gap-1">
           {row.status === "WAITING" && (
             <Button
@@ -624,7 +624,7 @@ function WaitlistContent() {
                       ) : (
                         column.cell
                           ? column.cell(row, index)
-                          : (column.accessorKey ? (row as any)[column.accessorKey] : null)
+                          : (column.key ? (row as any)[column.key] : null)
                       )}
                     </td>
                   ))}
