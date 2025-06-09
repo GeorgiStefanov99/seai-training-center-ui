@@ -360,7 +360,7 @@ export default function CourseTemplatesPage() {
           rowRender={(row, index) => (
             <tr 
               key={row.id || index} 
-              className="h-10 cursor-pointer hover:bg-muted/50 transition-colors"
+              className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 0 ? '' : 'bg-muted/30'}`}
               onClick={() => navigateToTemplateDetail(row)}
             >
               {columns.map((column) => (

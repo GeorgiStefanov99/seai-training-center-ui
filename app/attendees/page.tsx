@@ -617,7 +617,7 @@ export default function AttendeesPage() {
           rowRender={(row, index) => (
             <tr 
               key={row.id || index} 
-              className="h-10 cursor-pointer hover:bg-muted/50 transition-colors"
+              className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 0 ? '' : 'bg-muted/30'}`}
               onClick={() => navigateToAttendeeDetail(row)}
             >
               {columns.map((column) => (
