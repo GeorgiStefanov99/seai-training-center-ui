@@ -20,7 +20,8 @@ import {
   MoreHorizontal,
   Filter,
   ChevronRight,
-  UserPlus
+  UserPlus,
+  Mail
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { getCourses, deleteCourse, archiveCourse } from "@/services/courseService"
@@ -38,6 +39,7 @@ import {
 import { format, parse, parseISO, startOfWeek, endOfWeek, eachWeekOfInterval, addWeeks, isSameWeek, startOfMonth, endOfMonth, isWithinInterval } from "date-fns"
 import { CourseSchedulingDialog } from "@/components/dialogs/course-scheduling-dialog"
 import { CourseAttendeesManagementDialog } from "@/components/dialogs/course-attendees-management-dialog"
+import { SendScheduleDialog } from "@/components/dialogs/send-schedule-dialog"
 
 // Create a context for course actions
 const CourseActionsContext = React.createContext<{
@@ -252,6 +254,7 @@ export default function CoursesPage() {
   const [viewMode, setViewMode] = useState<'list' | 'weekly'>('list')
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false)
   const [isArchiving, setIsArchiving] = useState(false)
+  const [sendScheduleDialogOpen, setSendScheduleDialogOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
   // Get training center ID from the authenticated user
@@ -562,6 +565,10 @@ export default function CoursesPage() {
                 <Calendar className="mr-2 h-4 w-4" />
                 View Archive
               </Button>
+              <Button variant="outline" onClick={() => setSendScheduleDialogOpen(true)}>
+                <Mail className="mr-2 h-4 w-4" />
+                Send Schedule
+              </Button>
               <div className="flex items-center space-x-2 mr-4">
                 <Button 
                   variant={viewMode === 'list' ? 'default' : 'outline'}
@@ -727,6 +734,12 @@ export default function CoursesPage() {
             isLoading={isArchiving}
           />
         )}
+        
+        {/* Send Schedule Dialog */}
+        <SendScheduleDialog
+          open={sendScheduleDialogOpen}
+          onOpenChange={setSendScheduleDialogOpen}
+        />
       </div>
     </PageLayout>
   )

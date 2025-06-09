@@ -7,6 +7,11 @@ import {
   UpdateCourseRequest
 } from '@/types/course';
 
+// Interface for sending course schedules
+export interface SendCourseScheduleRequest {
+  email: string;
+}
+
 // Import auth helpers from courseTemplateService
 import { getAuthToken, getAuthHeaders } from '@/services/courseTemplateService';
 
@@ -266,6 +271,36 @@ export const getArchivedCourseById = async (params: CourseApiParams): Promise<Co
     return response.data;
   } catch (error) {
     console.error(`Error fetching archived course ID ${courseId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Send course schedule to specified email addresses
+ * @param trainingCenterId Training center ID
+ * @param recipients Array of email addresses to send the schedule to
+ * @returns Promise with void
+ */
+export const sendCourseSchedule = async (trainingCenterId: string, recipients: SendCourseScheduleRequest[]): Promise<void> => {
+  if (!trainingCenterId) {
+    throw new Error('Training center ID is required');
+  }
+  
+  if (!recipients || recipients.length === 0) {
+    throw new Error('At least one recipient email is required');
+  }
+  
+  try {
+    const token = getAuthToken();
+    const headers = getAuthHeaders(token);
+    
+    await axios.post(
+      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/courses/course-schedule`,
+      recipients,
+      { headers }
+    );
+  } catch (error) {
+    console.error('Error sending course schedule:', error);
     throw error;
   }
 };
