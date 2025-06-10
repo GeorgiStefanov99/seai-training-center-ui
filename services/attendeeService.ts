@@ -4,7 +4,9 @@ import {
   CreateAttendeeRequest, 
   GetAttendeesResponse, 
   UpdateAttendeeRequest,
-  AttendeeApiParams
+  AttendeeApiParams,
+  PaginationParams,
+  PaginatedAttendeesResponse
 } from '@/types/attendee';
 
 // Storage keys from useAuth.tsx
@@ -50,9 +52,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.seai.c
 const API_VERSION_PATH = '/api/v1';
 
 /**
- * Fetch all attendees for a training center
+ * Fetch all attendees for a training center (legacy non-paginated version)
  * @param trainingCenterId The ID of the training center
  * @returns Promise with the list of attendees
+ * @deprecated Use getPaginatedAttendees instead
  */
 export const getAttendees = async (trainingCenterId: string): Promise<Attendee[]> => {
   try {
@@ -69,6 +72,43 @@ export const getAttendees = async (trainingCenterId: string): Promise<Attendee[]
     return response.data;
   } catch (error) {
     console.error('Error fetching attendees:', error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch paginated attendees for a training center
+ * @param trainingCenterId The ID of the training center
+ * @param params Pagination parameters (page, size, sortBy)
+ * @returns Promise with paginated attendees response
+ */
+export const getPaginatedAttendees = async (
+  trainingCenterId: string, 
+  params: PaginationParams = {}
+): Promise<PaginatedAttendeesResponse> => {
+  try {
+    const token = getAuthToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    
+    // Default values
+    const page = params.page ?? 0;
+    const size = params.size ?? 10;
+    const sortBy = params.sortBy ?? 'name';
+    
+    const response = await axios.get<PaginatedAttendeesResponse>(
+      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/attendees`,
+      { 
+        headers,
+        params: {
+          page,
+          size,
+          sortBy
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching paginated attendees:', error);
     throw error;
   }
 };

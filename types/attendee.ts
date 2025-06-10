@@ -109,8 +109,24 @@ export interface Attendee extends AttendeeBase {
   onlineCourseId?: string;
 }
 
-// Response type for the GET attendees endpoint
+// Pagination parameters for requests
+export interface PaginationParams {
+  page?: number;
+  size?: number;
+  sortBy?: string;
+}
+
+// Response type for the GET attendees endpoint (old non-paginated version)
 export type GetAttendeesResponse = Attendee[];
+
+// Response type for the paginated GET attendees endpoint
+export interface PaginatedAttendeesResponse {
+  attendees: Attendee[];
+  totalElements: number;
+  totalPages: number;
+  currentPage: number;
+  pageSize: number;
+}
 
 // Parameters for attendee API requests
 export interface AttendeeApiParams {
