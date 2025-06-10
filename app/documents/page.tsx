@@ -6,7 +6,7 @@ import { CustomTable } from "@/components/ui/custom-table";
 import { Column } from "@/types/table";
 import { Attendee } from "@/types/attendee";
 import { Document, FileItem } from "@/types/document";
-import { getAttendees } from "@/services/attendeeService";
+import { getAttendees, getPaginatedAttendees } from "@/services/attendeeService";
 import { getAttendeeDocuments, deleteDocument } from "@/services/documentService";
 import { getDocumentFiles } from "@/services/fileService";
 import { Button } from "@/components/ui/button";
@@ -57,18 +57,44 @@ export default function DocumentsPage() {
     const fetchAllDocuments = async () => {
       setIsLoading(true);
       try {
-        const attendees = await getAttendees(trainingCenterId);
+        // Use paginated API to fetch all attendees
+        const PAGE_SIZE = 100; // Fetch a large number of attendees per page
+        let currentPage = 0;
+        let hasMorePages = true;
+        let allAttendees: Attendee[] = [];
+        
+        // Fetch all attendees using pagination
+        while (hasMorePages) {
+          const response = await getPaginatedAttendees(trainingCenterId, {
+            page: currentPage,
+            size: PAGE_SIZE,
+            sortBy: 'name'
+          });
+          
+          allAttendees = [...allAttendees, ...response.attendees];
+          
+          // Check if we've reached the last page
+          if (response.attendees.length < PAGE_SIZE || currentPage >= response.totalPages - 1) {
+            hasMorePages = false;
+          } else {
+            currentPage++;
+          }
+        }
+        
+        // Process documents for each attendee
         const allRows: any[] = [];
-        for (const attendee of attendees) {
+        for (const attendee of allAttendees) {
           const documents = await getAttendeeDocuments({ trainingCenterId: attendee.trainingCenterId, attendeeId: attendee.id });
           for (const doc of documents) {
             const files = await getDocumentFiles({ trainingCenterId: attendee.trainingCenterId, attendeeId: attendee.id, documentId: doc.id });
             allRows.push({ attendee, doc, files });
           }
         }
+        
         setRows(allRows);
         setError(null);
       } catch (err) {
+        console.error('Error fetching documents:', err);
         setError("Failed to load documents. Please try again.");
       } finally {
         setIsLoading(false);
