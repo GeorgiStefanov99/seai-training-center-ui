@@ -20,7 +20,9 @@ import {
   Loader2, 
   Filter, 
   Calendar,
-  ArrowLeft
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { getArchivedCourses } from "@/services/courseService"
@@ -48,6 +50,10 @@ export default function ArchivedCoursesPage() {
   const [error, setError] = useState<string | null>(null)
   const [enrolledCounts, setEnrolledCounts] = useState<Record<string, number>>({})
   const [isLoadingEnrolled, setIsLoadingEnrolled] = useState(false)
+  
+  // Pagination state
+  const ITEMS_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
@@ -95,6 +101,8 @@ export default function ArchivedCoursesPage() {
   
   // Filter courses based on search query
   useEffect(() => {
+    // Reset pagination when filters change
+    setCurrentPage(1);
     if (courses.length === 0) {
       setFilteredCourses([])
       return
@@ -176,7 +184,10 @@ export default function ArchivedCoursesPage() {
               <Input
                 placeholder="Search archived courses..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1); // Reset to first page when searching
+                }}
                 className="pl-8"
               />
             </div>
@@ -191,106 +202,151 @@ export default function ArchivedCoursesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <CustomTable
-              columns={[
-                {
-                  key: "index",
-                  header: "#",
-                  cell: (_, index) => index + 1,
-                  cellClassName: "text-center font-medium"
-                },
-                {
-                  key: "name",
-                  header: "Name",
-                  accessorKey: "name",
-                  cellClassName: "text-center font-medium"
-                },
-                {
-                  key: "startDate",
-                  header: "Start Date",
-                  cell: (row) => formatDate(row.startDate),
-                  cellClassName: "text-center"
-                },
-                {
-                  key: "startTime",
-                  header: "Start Time",
-                  cell: (row) => formatTime(row.startTime),
-                  cellClassName: "text-center"
-                },
-                {
-                  key: "endDate",
-                  header: "End Date",
-                  cell: (row) => formatDate(row.endDate),
-                  cellClassName: "text-center"
-                },
-                {
-                  key: "endTime",
-                  header: "End Time",
-                  cell: (row) => formatTime(row.endTime),
-                  cellClassName: "text-center"
-                },
-                {
-                  key: "remark",
-                  header: "Remark",
-                  cell: (row) => row.finishRemark || '-',
-                  cellClassName: "text-center"
-                },
-                {
-                  key: "enrolled",
-                  header: "Enrolled",
-                  cell: (row) => (
-                    <div className="flex items-center justify-center gap-1">
-                      {isLoadingEnrolled ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      ) : (
-                        <span>{enrolledCounts[row.id] ?? 0} / {row.maxSeats}</span>
-                      )}
-                    </div>
-                  ),
-                  cellClassName: "text-center"
-                }
-              ]}
-              data={filteredCourses}
-              isLoading={isLoading}
-              rowRender={(row, index) => (
-                <tr 
-                  key={row.id || index} 
-                  className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 1 ? 'bg-muted/30' : ''}`}
-                  onClick={() => router.push(`/courses/archive/detail?id=${row.id}`)}
-                >
-                  <td className="px-3 py-2 text-xs text-center">{index + 1}</td>
-                  <td className="px-3 py-2 text-xs text-center font-medium">{row.name}</td>
-                  <td className="px-3 py-2 text-xs text-center">{formatDate(row.startDate)}</td>
-                  <td className="px-3 py-2 text-xs text-center">{formatTime(row.startTime)}</td>
-                  <td className="px-3 py-2 text-xs text-center">{formatDate(row.endDate)}</td>
-                  <td className="px-3 py-2 text-xs text-center">{formatTime(row.endTime)}</td>
-                  <td className="px-3 py-2 text-xs text-center">{row.finishRemark || '-'}</td>
-                  <td className="px-3 py-2 text-xs text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      {isLoadingEnrolled ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      ) : (
-                        <span>{enrolledCounts[row.id] ?? 0} / {row.maxSeats}</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )}
-              emptyState={
-                <div className="text-center py-8">
-                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium">No archived courses found</h3>
-                  <p className="text-muted-foreground mb-4">
-                    {courses.length === 0
-                      ? "You haven't archived any courses yet."
-                      : "No courses match your search criteria."}
-                  </p>
-                </div>
-              }
-            />
+            {/* Calculate pagination values */}
+            {(() => {
+              const totalItems = filteredCourses.length;
+              const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+              const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+              const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
+              const currentPageItems = filteredCourses.slice(startIndex, endIndex);
+              
+              return (
+                <CustomTable
+                    columns={[
+                      {
+                        key: "index",
+                        header: "#",
+                        cell: (_, index) => index + 1,
+                        cellClassName: "text-center font-medium"
+                      },
+                      {
+                        key: "name",
+                        header: "Name",
+                        accessorKey: "name",
+                        cellClassName: "text-center font-medium"
+                      },
+                      {
+                        key: "startDate",
+                        header: "Start Date",
+                        cell: (row) => formatDate(row.startDate),
+                        cellClassName: "text-center"
+                      },
+                      {
+                        key: "startTime",
+                        header: "Start Time",
+                        cell: (row) => formatTime(row.startTime),
+                        cellClassName: "text-center"
+                      },
+                      {
+                        key: "endDate",
+                        header: "End Date",
+                        cell: (row) => formatDate(row.endDate),
+                        cellClassName: "text-center"
+                      },
+                      {
+                        key: "endTime",
+                        header: "End Time",
+                        cell: (row) => formatTime(row.endTime),
+                        cellClassName: "text-center"
+                      },
+                      {
+                        key: "remark",
+                        header: "Remark",
+                        cell: (row) => row.finishRemark || '-',
+                        cellClassName: "text-center"
+                      },
+                      {
+                        key: "enrolled",
+                        header: "Enrolled",
+                        cell: (row) => (
+                          <div className="flex items-center justify-center gap-1">
+                            {isLoadingEnrolled ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            ) : (
+                              <span>{enrolledCounts[row.id] ?? 0} / {row.maxSeats}</span>
+                            )}
+                          </div>
+                        ),
+                        cellClassName: "text-center"
+                      }
+                    ]}
+                    data={currentPageItems}
+                    isLoading={isLoading}
+                    rowRender={(row, index) => (
+                      <tr 
+                        key={row.id || index} 
+                        className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 1 ? 'bg-muted/30' : ''}`}
+                        onClick={() => router.push(`/courses/archive/detail?id=${row.id}`)}
+                      >
+                        <td className="px-3 py-2 text-xs text-center">{index + 1}</td>
+                        <td className="px-3 py-2 text-xs text-center font-medium">{row.name}</td>
+                        <td className="px-3 py-2 text-xs text-center">{formatDate(row.startDate)}</td>
+                        <td className="px-3 py-2 text-xs text-center">{formatTime(row.startTime)}</td>
+                        <td className="px-3 py-2 text-xs text-center">{formatDate(row.endDate)}</td>
+                        <td className="px-3 py-2 text-xs text-center">{formatTime(row.endTime)}</td>
+                        <td className="px-3 py-2 text-xs text-center">{row.finishRemark || '-'}</td>
+                        <td className="px-3 py-2 text-xs text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            {isLoadingEnrolled ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            ) : (
+                              <span>{enrolledCounts[row.id] ?? 0} / {row.maxSeats}</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    emptyState={
+                      <div className="text-center py-8">
+                        <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-medium">No archived courses found</h3>
+                        <p className="text-muted-foreground mb-4">
+                          {courses.length === 0
+                            ? "You haven't archived any courses yet."
+                            : "No courses match your search criteria."}
+                        </p>
+                      </div>
+                    }
+                  footerContent={
+                    totalItems > 0 ? (
+                      <div className="flex items-center justify-between px-2 py-4">
+                        <div className="text-sm text-muted-foreground">
+                          Showing {startIndex + 1} to {endIndex} of {totalItems} records
+                        </div>
+                        <div className="flex items-center space-x-6">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                            disabled={currentPage === 1}
+                          >
+                            <ChevronLeft className="h-4 w-4 mr-1" />
+                            Previous
+                          </Button>
+                          
+                          <div className="text-sm font-medium">
+                            Page {currentPage} of {totalPages}
+                          </div>
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                            disabled={currentPage === totalPages}
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null
+                  }
+                />
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
     </PageLayout>
   )
-} 
+}

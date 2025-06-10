@@ -7,7 +7,7 @@ import { Column } from "@/types/table"
 import { CourseTemplate, ActiveCourse, WaitlistRecord } from "@/types/course-template"
 import { getCourseTemplates, deleteCourseTemplate, getActiveCoursesForTemplate, getWaitlistRecordsForTemplate } from "@/services/courseTemplateService"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Pencil, Trash2, Search, ChevronRight, BookOpen, Clock } from "lucide-react"
+import { PlusCircle, Pencil, Trash2, Search, ChevronRight, BookOpen, Clock, ChevronLeft } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { CourseTemplateDialog, DeleteCourseTemplateDialog } from "@/components/dialogs/course-template-dialog"
 import { toast } from "sonner"
@@ -24,6 +24,10 @@ export default function CourseTemplatesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  
+  // Pagination state
+  const ITEMS_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -51,6 +55,15 @@ export default function CourseTemplatesPage() {
       );
     });
   }, [templates, searchQuery]);
+  
+  // Calculate pagination values
+  const totalItems = filteredTemplates.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
+  
+  // Get current page items
+  const currentPageItems = filteredTemplates.slice(startIndex, endIndex);
 
   // Fetch templates and active courses count
   useEffect(() => {
@@ -347,7 +360,10 @@ export default function CourseTemplatesPage() {
             <Input
               placeholder="Search templates by name, description, price..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1); // Reset to first page when searching
+              }}
               className="pl-8 w-full md:w-[300px]"
             />
           </div>
@@ -355,7 +371,7 @@ export default function CourseTemplatesPage() {
         
         <CustomTable
           columns={columns}
-          data={filteredTemplates}
+          data={currentPageItems}
           isLoading={isLoading}
           rowRender={(row, index) => (
             <tr 
@@ -389,6 +405,40 @@ export default function CourseTemplatesPage() {
                 Add your first course template
               </Button>
             </div>
+          }
+          footerContent={
+            totalItems > 0 ? (
+              <div className="flex items-center justify-between px-2 py-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {startIndex + 1} to {endIndex} of {totalItems} records
+                </div>
+                <div className="flex items-center space-x-6">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  
+                  <div className="text-sm font-medium">
+                    Page {currentPage} of {totalPages}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            ) : null
           }
         />
         

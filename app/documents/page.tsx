@@ -10,6 +10,7 @@ import { getAttendees } from "@/services/attendeeService";
 import { getAttendeeDocuments, deleteDocument } from "@/services/documentService";
 import { getDocumentFiles } from "@/services/fileService";
 import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Loader2, Eye, Edit, Trash2, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -37,6 +38,10 @@ export default function DocumentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<any[]>([]);
+  
+  // Pagination state
+  const ITEMS_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Dialog states
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
@@ -93,6 +98,15 @@ export default function DocumentsPage() {
           row.doc.name.toLowerCase().includes(selectedTemplate.toLowerCase())
         )
       : rows;
+      
+  // Calculate pagination values
+  const totalItems = filteredRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
+  
+  // Get current page items
+  const currentPageItems = filteredRows.slice(startIndex, endIndex);
 
   const handlePreview = (row: { attendee: Attendee; doc: Document; files: FileItem[] }) => {
     setSelectedDocument(row);
@@ -281,7 +295,10 @@ export default function DocumentsPage() {
           {/* Course Template Filter */}
           <div className="flex flex-wrap gap-4 items-center">
             <div>
-              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+              <Select value={selectedTemplate} onValueChange={(value) => {
+                setSelectedTemplate(value);
+                setCurrentPage(1); // Reset to first page when filtering
+              }}>
                 <SelectTrigger className="w-[250px]">
                   <SelectValue placeholder="Filter by Course Template" />
                 </SelectTrigger>
@@ -299,7 +316,7 @@ export default function DocumentsPage() {
         </div>
         <CustomTable
           columns={columns}
-          data={filteredRows}
+          data={currentPageItems}
           isLoading={isLoading}
           rowRender={(row, index) => (
             <tr 
@@ -365,6 +382,40 @@ export default function DocumentsPage() {
             </div>
           }
         />
+        
+        {/* Pagination Controls */}
+        {totalItems > 0 && (
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1} to {endIndex} of {totalItems} records
+            </div>
+            <div className="flex items-center space-x-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+              
+              <div className="text-sm font-medium">
+                Page {currentPage} of {totalPages}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Document Preview Dialog */}

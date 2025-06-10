@@ -665,6 +665,9 @@ export default function AttendeesPage() {
             >
               Previous
             </Button>
+            <div className="px-3 py-1 font-medium text-sm text-center min-w-[80px] bg-muted rounded-md">
+              Page {currentPage} of {Math.ceil(filteredAttendees.length / ITEMS_PER_PAGE) || 1}
+            </div>
             <Button
               variant="outline"
               size="sm"

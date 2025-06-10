@@ -17,6 +17,7 @@ interface CustomTableProps<T> {
   rowRender?: (row: T, index: number) => React.ReactNode
   emptyState?: React.ReactNode
   headerRender?: (column: Column) => React.ReactNode
+  footerContent?: React.ReactNode
 }
 
 export function CustomTable<T>({
@@ -26,6 +27,7 @@ export function CustomTable<T>({
   rowRender,
   emptyState,
   headerRender,
+  footerContent,
 }: CustomTableProps<T>) {
   if (isLoading) {
     return (
@@ -78,6 +80,11 @@ export function CustomTable<T>({
           </TableBody>
         </Table>
       </div>
+      {footerContent && (
+        <div className="border-t">
+          {footerContent}
+        </div>
+      )}
     </div>
   )
 }

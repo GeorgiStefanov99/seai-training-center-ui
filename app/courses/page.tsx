@@ -620,9 +620,9 @@ export default function CoursesPage() {
             {/* Status filter */}
             <div className="w-full sm:w-[200px]">
               <Select
-                value={statusFilter || ""}
+                value={statusFilter || "ALL"}
                 onValueChange={(value) => {
-                  setStatusFilter(value || undefined);
+                  setStatusFilter(value === "ALL" ? undefined : value);
                   setCurrentPage(1); // Reset to first page when filtering
                 }}
               >
@@ -633,7 +633,7 @@ export default function CoursesPage() {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Statuses</SelectItem>
+                  <SelectItem value="ALL">All Statuses</SelectItem>
                   <SelectItem value="SCHEDULED">Scheduled</SelectItem>
                   <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                   <SelectItem value="COMPLETED">Completed</SelectItem>
@@ -718,6 +718,9 @@ export default function CoursesPage() {
               >
                 Previous
               </Button>
+              <div className="px-3 py-1 font-medium text-sm text-center min-w-[80px] bg-muted rounded-md">
+                Page {currentPage} of {Math.ceil(filteredCourses.length / ITEMS_PER_PAGE) || 1}
+              </div>
               <Button
                 variant="outline"
                 size="sm"
