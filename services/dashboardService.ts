@@ -71,15 +71,42 @@ export async function getDashboardData({
     }
 
     // Fetch data from multiple endpoints in parallel
-    const [attendees, waitlistRecords, courseTemplates] = await Promise.all([
-      getAttendees(trainingCenterId),
-      getWaitlistRecords({ trainingCenterId, timestamp: Date.now() }),
-      getCourseTemplates(trainingCenterId)
-    ]);
+    let attendees: Attendee[] = [], waitlistRecords: WaitlistRecord[] = [], courseTemplates: CourseTemplate[] = [];
+    try {
+      const results = await Promise.all([
+        getAttendees(trainingCenterId).catch(err => {
+          console.error('Error fetching attendees:', err);
+          return [];
+        }),
+        getWaitlistRecords({ trainingCenterId, timestamp: Date.now() }).catch(err => {
+          console.error('Error fetching waitlist records:', err);
+          return [];
+        }),
+        getCourseTemplates(trainingCenterId).catch(err => {
+          console.error('Error fetching course templates:', err);
+          return [];
+        })
+      ]);
+      
+      // Ensure each result is an array
+      attendees = Array.isArray(results[0]) ? results[0] : [];
+      waitlistRecords = Array.isArray(results[1]) ? results[1] : [];
+      courseTemplates = Array.isArray(results[2]) ? results[2] : [];
+      
+      console.log('Dashboard data fetched:', {
+        attendeesCount: attendees.length,
+        waitlistCount: waitlistRecords.length,
+        templatesCount: courseTemplates.length
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard data components:', error);
+      // Continue with empty arrays to avoid breaking the dashboard
+    }
 
     // Get active courses from course templates
     // In a real implementation, this would be fetched from a dedicated endpoint
-    const activeCourses: ActiveCourse[] = courseTemplates
+    const activeCourses: ActiveCourse[] = Array.isArray(courseTemplates) ? courseTemplates
+      .filter(template => template && typeof template === 'object' && template.id && template.name)
       .map(template => ({
         id: `active-${template.id}`,
         templateId: template.id,
@@ -87,10 +114,10 @@ export async function getDashboardData({
         startDate: new Date().toISOString(), // Mock data
         endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Mock data
         status: "SCHEDULED" as const,
-        maxSeats: template.maxSeats,
-        availableSeats: Math.floor(template.maxSeats * 0.3), // Mock data
-        enrolledAttendees: Math.floor(template.maxSeats * 0.7) // Mock data
-      }));
+        maxSeats: template.maxSeats || 20, // Default if missing
+        availableSeats: Math.floor((template.maxSeats || 20) * 0.3), // Mock data
+        enrolledAttendees: Math.floor((template.maxSeats || 20) * 0.7) // Mock data
+      })) : [];
 
     // Calculate metrics
     const totalAttendees = attendees.length;
@@ -117,10 +144,15 @@ export async function getDashboardData({
 
     // Get rank distribution
     const rankCounts: Record<string, number> = {};
-    attendees.forEach((attendee: Attendee) => {
-      const rank = attendee.rank || 'OTHER';
-      rankCounts[rank] = (rankCounts[rank] || 0) + 1;
-    });
+    // Ensure attendees is an array before using forEach
+    if (Array.isArray(attendees)) {
+      attendees.forEach((attendee: Attendee) => {
+        const rank = attendee.rank || 'OTHER';
+        rankCounts[rank] = (rankCounts[rank] || 0) + 1;
+      });
+    } else {
+      console.warn('Attendees is not an array, skipping rank distribution calculation');
+    }
 
     const rankDistribution = Object.entries(rankCounts).map(([rank, count]) => ({
       rank,
@@ -128,42 +160,51 @@ export async function getDashboardData({
     }));
 
     // Get recent waitlist records (sorted by most recent)
-    const recentWaitlist = [...waitlistRecords]
+    const recentWaitlist = Array.isArray(waitlistRecords) ? [...waitlistRecords]
+      .filter(record => record && typeof record === 'object')
       .sort((a: WaitlistRecord, b: WaitlistRecord) => {
-        const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-        const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        const dateA = a && a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const dateB = b && b.timestamp ? new Date(b.timestamp).getTime() : 0;
         return dateB - dateA;
       })
-      .slice(0, 5);
+      .slice(0, 5) : [];
 
     // Get upcoming courses (sorted by start date)
-    const upcomingCourses = [...activeCourses]
-      .filter((course: ActiveCourse) => new Date(course.startDate) > new Date())
+    const upcomingCourses = Array.isArray(activeCourses) ? [...activeCourses]
+      .filter((course: ActiveCourse) => course && course.startDate && new Date(course.startDate) > new Date())
       .sort((a: ActiveCourse, b: ActiveCourse) => {
-        const dateA = new Date(a.startDate).getTime();
-        const dateB = new Date(b.startDate).getTime();
+        const dateA = a && a.startDate ? new Date(a.startDate).getTime() : 0;
+        const dateB = b && b.startDate ? new Date(b.startDate).getTime() : 0;
         return dateA - dateB;
       })
-      .slice(0, 5);
+      .slice(0, 5) : [];
 
     // Create recent enrollments from waitlist records with ENROLLED status
-    const recentEnrollments = waitlistRecords
-      .filter((record: WaitlistRecord) => record.status === "ENROLLED")
+    const recentEnrollments = Array.isArray(waitlistRecords) ? waitlistRecords
+      .filter((record: WaitlistRecord) => 
+        record && 
+        typeof record === 'object' && 
+        record.status === "ENROLLED" && 
+        record.attendeeResponse && 
+        typeof record.attendeeResponse === 'object'
+      )
       .map((record: WaitlistRecord) => ({
-        id: record.id,
-        attendeeId: record.attendeeResponse.id,
-        attendeeName: `${record.attendeeResponse.name || ''} ${record.attendeeResponse.surname || ''}`.trim(),
-        attendeeRank: record.attendeeResponse.rank,
-        courseId: record.courseTemplateId,
-        courseName: courseTemplates.find((t: CourseTemplate) => t.id === record.courseTemplateId)?.name || 'Unknown Course',
+        id: record.id || `enrollment-${Math.random().toString(36).substring(2, 9)}`,
+        attendeeId: record.attendeeResponse?.id || 'unknown',
+        attendeeName: `${record.attendeeResponse?.name || ''} ${record.attendeeResponse?.surname || ''}`.trim() || 'Unknown Attendee',
+        attendeeRank: record.attendeeResponse?.rank || 'OTHER',
+        courseId: record.courseTemplateId || 'unknown',
+        courseName: Array.isArray(courseTemplates) ? 
+          courseTemplates.find((t: CourseTemplate) => t && t.id === record.courseTemplateId)?.name || 'Unknown Course' : 
+          'Unknown Course',
         enrollmentDate: record.timestamp || new Date().toISOString()
       }))
       .sort((a: EnrollmentData, b: EnrollmentData) => {
-        const dateA = new Date(a.enrollmentDate).getTime();
-        const dateB = new Date(b.enrollmentDate).getTime();
+        const dateA = a && a.enrollmentDate ? new Date(a.enrollmentDate).getTime() : 0;
+        const dateB = b && b.enrollmentDate ? new Date(b.enrollmentDate).getTime() : 0;
         return dateB - dateA;
       })
-      .slice(0, 5);
+      .slice(0, 5) : [];
 
     return {
       metrics: {
