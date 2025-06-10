@@ -63,26 +63,62 @@ export default function AttendeesPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 20
   
+  // Sorting state
+  type SortField = 'activeCourses' | 'pastCourses' | 'waitlist' | null
+  const [sortField, setSortField] = useState<SortField>(null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
   
-  // Filter attendees based on search query
+  // Filter and sort attendees based on search query and sort settings
   const filteredAttendees = useMemo(() => {
-    if (!searchQuery.trim()) return attendees;
+    // First filter by search query
+    let filtered = attendees;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = attendees.filter(attendee => {
+        // Search in all text fields
+        return (
+          attendee.name?.toLowerCase().includes(query) ||
+          attendee.surname?.toLowerCase().includes(query) ||
+          attendee.email?.toLowerCase().includes(query) ||
+          attendee.telephone?.toLowerCase().includes(query) ||
+          RANK_LABELS[attendee.rank]?.toLowerCase().includes(query) ||
+          attendee.remark?.toLowerCase().includes(query)
+        );
+      });
+    }
     
-    const query = searchQuery.toLowerCase().trim();
-    return attendees.filter(attendee => {
-      // Search in all text fields
-      return (
-        attendee.name?.toLowerCase().includes(query) ||
-        attendee.surname?.toLowerCase().includes(query) ||
-        attendee.email?.toLowerCase().includes(query) ||
-        attendee.telephone?.toLowerCase().includes(query) ||
-        RANK_LABELS[attendee.rank]?.toLowerCase().includes(query) ||
-        attendee.remark?.toLowerCase().includes(query)
-      );
-    });
-  }, [attendees, searchQuery]);
+    // Then sort if a sort field is selected
+    if (sortField) {
+      return [...filtered].sort((a, b) => {
+        if (!a.id || !b.id) return 0;
+        
+        let aValue = 0;
+        let bValue = 0;
+        
+        switch (sortField) {
+          case 'activeCourses':
+            aValue = activeCourseCount[a.id] || 0;
+            bValue = activeCourseCount[b.id] || 0;
+            break;
+          case 'pastCourses':
+            aValue = pastCourseCount[a.id] || 0;
+            bValue = pastCourseCount[b.id] || 0;
+            break;
+          case 'waitlist':
+            aValue = waitlistCount[a.id] || 0;
+            bValue = waitlistCount[b.id] || 0;
+            break;
+        }
+        
+        return sortDirection === 'desc' ? bValue - aValue : aValue - bValue;
+      });
+    }
+    
+    return filtered;
+  }, [attendees, searchQuery, sortField, sortDirection, activeCourseCount, pastCourseCount, waitlistCount]);
 
   // Function to fetch remarks for an attendee
   const fetchAttendeeRemarks = async (attendeeId: string) => {
@@ -279,6 +315,26 @@ export default function AttendeesPage() {
       console.log('DEBUG - Navigation - Missing attendee ID, cannot navigate')
     }
   }
+  
+  // Handle sorting
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      if (sortDirection === 'asc') {
+        // If already in ascending order, reset sorting completely
+        setSortField(null)
+        setSortDirection('desc') // Reset to default direction
+      } else {
+        // Toggle from desc to asc
+        setSortDirection('asc')
+      }
+    } else {
+      // Set new field and default to descending order
+      setSortField(field)
+      setSortDirection('desc')
+    }
+    // Reset to first page when sorting changes
+    setCurrentPage(1)
+  }
 
   const handleEdit = (attendee: Attendee) => {
     setSelectedAttendee(attendee)
@@ -416,7 +472,19 @@ export default function AttendeesPage() {
     },
     {
       key: "courses",
-      header: <div className="text-center w-full">Active Courses</div>,
+      header: (
+        <div 
+          className="text-center w-full flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors p-1 rounded"
+          onClick={() => handleSort('activeCourses')}
+        >
+          Active Courses
+          {sortField === 'activeCourses' && (
+            <span className="ml-1">
+              {sortDirection === 'desc' ? '↓' : '↑'}
+            </span>
+          )}
+        </div>
+      ),
       cell: (row: Attendee) => {
         if (!row.id) {
           return <span className="text-muted-foreground text-xs text-center w-full block">No ID</span>;
@@ -438,7 +506,19 @@ export default function AttendeesPage() {
     },
     {
       key: "pastCourses",
-      header: <div className="text-center w-full">Past Courses</div>,
+      header: (
+        <div 
+          className="text-center w-full flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors p-1 rounded"
+          onClick={() => handleSort('pastCourses')}
+        >
+          Past Courses
+          {sortField === 'pastCourses' && (
+            <span className="ml-1">
+              {sortDirection === 'desc' ? '↓' : '↑'}
+            </span>
+          )}
+        </div>
+      ),
       cell: (row: Attendee) => {
         if (!row.id) {
           return <span className="text-muted-foreground text-xs text-center w-full block">No ID</span>;
@@ -460,7 +540,19 @@ export default function AttendeesPage() {
     },
     {
       key: "waitlist",
-      header: <div className="text-center w-full">Waitlist</div>,
+      header: (
+        <div 
+          className="text-center w-full flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors p-1 rounded"
+          onClick={() => handleSort('waitlist')}
+        >
+          Waitlist
+          {sortField === 'waitlist' && (
+            <span className="ml-1">
+              {sortDirection === 'desc' ? '↓' : '↑'}
+            </span>
+          )}
+        </div>
+      ),
       cell: (row: Attendee) => {
         if (!row.id) {
           return <span className="text-muted-foreground text-xs text-center w-full block">No ID</span>;
