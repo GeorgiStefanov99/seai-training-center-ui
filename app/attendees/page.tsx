@@ -58,8 +58,6 @@ export default function AttendeesPage() {
   // Remarks data
   const [attendeeRemarks, setAttendeeRemarks] = useState<Record<string, Remark[]>>({})
   const [isLoadingRemarks, setIsLoadingRemarks] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-  const ITEMS_PER_PAGE = 20
   
   // Sorting state
   type SortField = 'activeCourses' | 'pastCourses' | 'waitlist' | null
@@ -69,12 +67,13 @@ export default function AttendeesPage() {
   // Get training center ID from the authenticated user
   const trainingCenterId = user?.userId || ""
   
-  // Total number of attendees (from paginated response)
+  // Pagination state (client-side)
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 20
   const [totalElements, setTotalElements] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
   
-  // We'll use client-side filtering only for the search query
-  // Server-side will handle pagination and sorting
+  // We'll use client-side filtering for the search query
+  // Client-side pagination and sorting
   const filteredAttendees = useMemo(() => {
     if (!searchQuery.trim()) return attendees;
     
@@ -87,10 +86,22 @@ export default function AttendeesPage() {
         attendee.email?.toLowerCase().includes(query) ||
         attendee.telephone?.toLowerCase().includes(query) ||
         RANK_LABELS[attendee.rank]?.toLowerCase().includes(query) ||
-        attendee.remark?.toLowerCase().includes(query)
+        false
       );
     });
   }, [attendees, searchQuery]);
+  
+  // Apply pagination to filtered attendees
+  const paginatedAttendees = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredAttendees.slice(startIndex, endIndex);
+  }, [filteredAttendees, currentPage, ITEMS_PER_PAGE]);
+  
+  // Calculate total pages
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredAttendees.length / ITEMS_PER_PAGE);
+  }, [filteredAttendees, ITEMS_PER_PAGE]);
 
   // Function to process remarks from attendees
   const processAttendeeRemarks = (attendeesList: AttendeeWithDetails[]) => {
@@ -148,7 +159,8 @@ export default function AttendeesPage() {
   };
 
   useEffect(() => {
-    const fetchInitialAttendees = async () => {
+    // Function to fetch attendees
+    const fetchAttendees = async () => {
       if (!trainingCenterId) {
         setError("Training center ID is required")
         setIsLoading(false)
@@ -160,23 +172,16 @@ export default function AttendeesPage() {
         
         // Use server-side sorting if a sort field is selected
         let sortBy = 'name';
-        
-        // Temporarily avoid using problematic sort fields until backend is updated
-        const supportedSortFields = ['name', 'email', 'telephone', 'rank'];
-        
-        if (sortField && supportedSortFields.includes(sortField)) {
+        if (sortField) {
           sortBy = sortField;
         }
         
         const response = await getPaginatedAttendees(trainingCenterId, {
-          page: currentPage,
-          size: ITEMS_PER_PAGE,
           sortBy
         })
         
         setAttendees(response.attendees)
-        setTotalElements(response.totalElements)
-        setTotalPages(response.totalPages)
+        setTotalElements(response.attendees.length)
         setError(null)
         
         // Process remarks from the response
@@ -193,14 +198,13 @@ export default function AttendeesPage() {
       }
     }
 
-    fetchInitialAttendees()
-  }, [trainingCenterId, currentPage, sortField])
+    fetchAttendees()
+  }, [trainingCenterId, sortField])
 
-  // Function to fetch paginated attendees
-  const fetchAttendees = async () => {
+  // Refresh the attendees list
+  const refreshAttendees = async () => {
     if (!trainingCenterId) {
       setError("Training center ID is required")
-      setIsLoading(false)
       return
     }
     
@@ -214,50 +218,12 @@ export default function AttendeesPage() {
       }
       
       const response = await getPaginatedAttendees(trainingCenterId, {
-        page: currentPage, // API uses 0-based indexing
-        size: ITEMS_PER_PAGE,
-        sortBy
-      })
-      
-      setAttendees(response.attendees)
-      setTotalElements(response.totalElements)
-      setTotalPages(response.totalPages)
-      setError(null)
-      
-      // Process remarks from the response
-      processAttendeeRemarks(response.attendees);
-      
-      // Process course and waitlist counts from the response
-      processAttendeeCounts(response.attendees);
-    } catch (err) {
-      console.error("Error fetching attendees:", err)
-      setError("Failed to load attendees. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Refresh the attendees list
-  const refreshAttendees = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Use server-side sorting if a sort field is selected
-      let sortBy = 'name';
-      if (sortField) {
-        sortBy = sortField;
-      }
-      
-      const response = await getPaginatedAttendees(trainingCenterId, {
-        page: currentPage, // API uses 0-based indexing
-        size: ITEMS_PER_PAGE,
         sortBy
       });
       
-      setAttendees(response.attendees);
-      setTotalElements(response.totalElements);
-      setTotalPages(response.totalPages);
-      setError(null);
+      setAttendees(response.attendees)
+      setTotalElements(response.attendees.length)
+      setError(null)
       
       // Process remarks from the response
       processAttendeeRemarks(response.attendees);
@@ -267,11 +233,11 @@ export default function AttendeesPage() {
       
       toast.success("Attendees refreshed successfully");
     } catch (err) {
-      console.error("Error refreshing attendees:", err);
-      setError("Failed to refresh attendees. Please try again.");
-      toast.error("Failed to refresh attendees");
+      console.error('Error refreshing attendees:', err)
+      setError('Failed to refresh attendees. Please try again.')
+      toast.error('Failed to refresh attendees')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   };
 
@@ -294,34 +260,16 @@ export default function AttendeesPage() {
   
   // Handle sorting
   const handleSort = (field: SortField) => {
-    // Check if the field is supported by the backend
-    const supportedSortFields = ['name', 'email', 'telephone', 'rank'];
-    
-    // If field is not supported, show a toast message and return
-    if (field && !supportedSortFields.includes(field)) {
-      toast.error(`Sorting by ${field} is temporarily unavailable`);
-      return;
-    }
-    
-    if (sortField === field) {
-      if (sortDirection === 'asc') {
-        // If already in ascending order, reset sorting completely
-        setSortField(null)
-        setSortDirection('desc') // Reset to default direction
-      } else {
-        // Toggle from desc to asc
-        setSortDirection('asc')
-      }
+    if (field === sortField) {
+      // Toggle sort direction if clicking the same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
     } else {
-      // Set new field and default to descending order
+      // Set new sort field and default to ascending
       setSortField(field)
-      setSortDirection('desc')
+      setSortDirection('asc')
     }
-    // Reset to first page when sorting changes
-    setCurrentPage(1)
     
-    // Fetch data with new sorting
-    fetchAttendees();
+    // The useEffect will handle fetching data with the new sort field
   }
 
   const handleEdit = (attendee: AttendeeWithDetails) => {
@@ -670,7 +618,7 @@ export default function AttendeesPage() {
         
         <CustomTable
           columns={columns}
-          data={searchQuery ? filteredAttendees : attendees}
+          data={paginatedAttendees}
           isLoading={isLoading}
           rowRender={(row, index) => (
             <tr 
@@ -708,20 +656,15 @@ export default function AttendeesPage() {
         />
         
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mt-4">
           <div className="text-sm text-muted-foreground">
-            Showing {attendees.length} of {totalElements} attendees
+            Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredAttendees.length)} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredAttendees.length)} of {filteredAttendees.length} attendees
           </div>
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                const newPage = Math.max(currentPage - 1, 1);
-                setCurrentPage(newPage);
-                // Use the paginated fetch function
-                fetchAttendees();
-              }}
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage <= 1}
             >
               Previous
@@ -732,12 +675,7 @@ export default function AttendeesPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                const newPage = currentPage + 1;
-                setCurrentPage(newPage);
-                // Use the paginated fetch function
-                fetchAttendees();
-              }}
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage >= totalPages}
             >
               Next
