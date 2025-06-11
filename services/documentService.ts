@@ -14,7 +14,7 @@ const API_VERSION_PATH = '/api/v1';
  * @returns Promise with array of documents
  */
 export const getAttendeeDocuments = async (params: DocumentApiParams): Promise<Document[]> => {
-  const { trainingCenterId, attendeeId } = params;
+  const { trainingCenterId, attendeeId, includeFiles } = params;
   
   if (!trainingCenterId || !attendeeId) {
     throw new Error('Training center ID and attendee ID are required');
@@ -25,7 +25,7 @@ export const getAttendeeDocuments = async (params: DocumentApiParams): Promise<D
     const headers = getAuthHeaders(token);
     
     const response = await axios.get<Document[]>(
-      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/attendees/${attendeeId}/documents`,
+      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/attendees/${attendeeId}/documents${includeFiles ? '?includeFiles=true' : ''}`,
       { headers }
     );
     

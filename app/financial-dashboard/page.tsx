@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { useRouter } from "next/navigation"
-import { format, parseISO, addMonths, subMonths } from "date-fns"
+import { format, parseISO, addMonths, subMonths, startOfMonth, endOfMonth, subDays } from "date-fns"
+import { DateRange } from "react-day-picker"
 
 // Layout and UI components
 import { PageLayout } from "@/components/page-layout"
@@ -15,6 +16,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { MultiSelect, Option } from "@/components/ui/multi-select"
+import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
   PieChart, Pie, Cell, BarChart, Bar, LineChart, Line,
@@ -43,8 +46,11 @@ export default function FinancialDashboard() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [dashboardData, setDashboardData] = useState<FinancialDashboardData | null>(null)
-  const [dateRange, setDateRange] = useState<'month' | 'quarter' | 'year'>('month')
-  const [courseTypeFilter, setCourseTypeFilter] = useState<string>('all')
+  const [dateRange, setDateRange] = useState<DateRange>({ 
+    from: subDays(new Date(), 30), 
+    to: new Date() 
+  })
+  const [courseTypeFilters, setCourseTypeFilters] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [coursesPage, setCoursesPage] = useState(1)
   const [attendeesPage, setAttendeesPage] = useState(1)
@@ -58,14 +64,18 @@ export default function FinancialDashboard() {
     if (trainingCenterId) {
       fetchDashboardData()
     }
-  }, [trainingCenterId, dateRange])
+  }, [trainingCenterId, dateRange?.from, dateRange?.to])
   
   // Function to fetch dashboard data
   const fetchDashboardData = async () => {
     setIsLoading(true)
     try {
-      // In a real implementation, we would pass dateRange to the API
-      const data = await getFinancialDashboardData({ trainingCenterId })
+      // Pass the selected date range to the API
+      const data = await getFinancialDashboardData({ 
+        trainingCenterId,
+        startDate: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : undefined,
+        endDate: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : undefined
+      })
       setDashboardData(data)
     } catch (err) {
       console.error('Error fetching financial dashboard data:', err)
@@ -93,16 +103,20 @@ export default function FinancialDashboard() {
   // Colors for charts
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1']
   
-  // Filter course financials based on search term
+  // Get unique course types for the filter options
+  const courseTypes = dashboardData?.courseFinancials
+    ? Array.from(new Set(dashboardData.courseFinancials.map(course => course.type)))
+        .map(type => ({ label: type, value: type }))
+    : []
+
+  // Filter course financials based on search term and selected course types
   const filteredCourses = dashboardData?.courseFinancials.filter(course => {
     const matchesSearch = searchTerm 
       ? course.name.toLowerCase().includes(searchTerm.toLowerCase()) 
       : true
     
-    const matchesType = courseTypeFilter === 'all' 
-      ? true 
-      : course.type === courseTypeFilter
-      
+    const matchesType = courseTypeFilters.length === 0 || courseTypeFilters.includes(course.type)
+    
     return matchesSearch && matchesType
   }) || []
   
@@ -151,43 +165,40 @@ export default function FinancialDashboard() {
   
   return (
     <PageLayout title="Financial Dashboard">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-6 items-center">
-        <div className="flex items-center space-x-2">
+      {/* Filter Controls */}
+      <div className="flex flex-col md:flex-row items-start md:items-end gap-4 mb-6">
+        <div className="flex flex-col space-y-1.5 w-full md:w-[300px]">
           <Label htmlFor="date-range">Time Period:</Label>
-          <Select value={dateRange} onValueChange={(value: 'month' | 'quarter' | 'year') => setDateRange(value)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select period" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="month">Last Month</SelectItem>
-              <SelectItem value="quarter">Last Quarter</SelectItem>
-              <SelectItem value="year">Last Year</SelectItem>
-            </SelectContent>
-          </Select>
+          <DateRangePicker
+            value={dateRange}
+            onChange={(range: DateRange | undefined) => range && setDateRange(range)}
+            className="w-full"
+            placeholder="Select date range"
+          />
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-col space-y-1.5 w-full md:w-[300px]">
           <Label htmlFor="course-type">Course Type:</Label>
-          <Select value={courseTypeFilter} onValueChange={setCourseTypeFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Select course type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Course Types</SelectItem>
-              {courseTypeRevenue?.map((type, index) => (
-                <SelectItem key={index} value={type.type}>{type.type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <MultiSelect
+            options={[
+              ...courseTypes
+            ]}
+            selected={courseTypeFilters}
+            onChange={setCourseTypeFilters}
+            placeholder="Select course types"
+            emptyMessage="No course types found"
+            className="w-full"
+          />
         </div>
         
         <div className="flex-grow ml-auto">
-          <Input 
-            placeholder="Search courses or attendees..." 
+          <Label htmlFor="search" className="mb-1.5">Search:</Label>
+          <Input
+            id="search"
+            placeholder="Search courses..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-xs ml-auto"
+            className="w-full md:w-[250px]"
           />
         </div>
         

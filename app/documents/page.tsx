@@ -1,17 +1,17 @@
 "use client"
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { PageLayout } from "@/components/page-layout";
 import { CustomTable } from "@/components/ui/custom-table";
 import { Column } from "@/types/table";
 import { Attendee } from "@/types/attendee";
 import { Document, FileItem } from "@/types/document";
-import { getAttendees, getPaginatedAttendees } from "@/services/attendeeService";
+import { getPaginatedAttendees } from '@/services/attendeeService';
 import { getAttendeeDocuments, deleteDocument } from "@/services/documentService";
 import { getDocumentFiles } from "@/services/fileService";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Loader2, Eye, Edit, Trash2, Check } from "lucide-react";
+import { Loader2, Eye, Edit, Trash2, Check, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,7 +42,12 @@ export default function DocumentsPage() {
   // Pagination state
   const ITEMS_PER_PAGE = 20;
   const [currentPage, setCurrentPage] = useState(1);
-
+  
+  // State for filters and pagination
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("all");
+  const [courseTemplates, setCourseTemplates] = useState<any[]>([]);
+  
   // Dialog states
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -50,57 +55,60 @@ export default function DocumentsPage() {
   const [selectedDocument, setSelectedDocument] = useState<{ attendee: Attendee; doc: Document; files: FileItem[] } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [courseTemplates, setCourseTemplates] = useState<any[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("all");
-
-  useEffect(() => {
-    const fetchAllDocuments = async () => {
-      setIsLoading(true);
-      try {
-        // Use paginated API to fetch all attendees
-        const PAGE_SIZE = 100; // Fetch a large number of attendees per page
-        let currentPage = 0;
-        let hasMorePages = true;
-        let allAttendees: Attendee[] = [];
+  // Function to fetch all documents
+  const fetchAllDocuments = async () => {
+    setIsLoading(true);
+    try {
+      const response = await getPaginatedAttendees(trainingCenterId, { sortBy: 'name' });
+      const allAttendees = response.attendees;
+      
+      // Process documents for each attendee
+      const allRows: any[] = [];
+      for (const attendee of allAttendees) {
+        // Get documents for this attendee (without files)
+        const documents = await getAttendeeDocuments({ 
+          trainingCenterId: attendee.trainingCenterId, 
+          attendeeId: attendee.id
+        });
         
-        // Fetch all attendees using pagination
-        while (hasMorePages) {
-          const response = await getPaginatedAttendees(trainingCenterId, {
-            page: currentPage,
-            size: PAGE_SIZE,
-            sortBy: 'name'
+        // For each document, fetch its files separately
+        for (const doc of documents) {
+          // Fetch files for this document
+          let files: FileItem[] = [];
+          try {
+            files = await getDocumentFiles({
+              trainingCenterId: attendee.trainingCenterId,
+              attendeeId: attendee.id,
+              documentId: doc.id
+            });
+          } catch (fileErr) {
+            console.error(`Error fetching files for document ${doc.id}:`, fileErr);
+            files = [];
+          }
+          
+          // Add the document and its files to our rows
+          allRows.push({ 
+            attendee, 
+            doc, 
+            files: files
           });
-          
-          allAttendees = [...allAttendees, ...response.attendees];
-          
-          // Check if we've reached the last page
-          if (response.attendees.length < PAGE_SIZE || currentPage >= response.totalPages - 1) {
-            hasMorePages = false;
-          } else {
-            currentPage++;
-          }
         }
-        
-        // Process documents for each attendee
-        const allRows: any[] = [];
-        for (const attendee of allAttendees) {
-          const documents = await getAttendeeDocuments({ trainingCenterId: attendee.trainingCenterId, attendeeId: attendee.id });
-          for (const doc of documents) {
-            const files = await getDocumentFiles({ trainingCenterId: attendee.trainingCenterId, attendeeId: attendee.id, documentId: doc.id });
-            allRows.push({ attendee, doc, files });
-          }
-        }
-        
-        setRows(allRows);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching documents:', err);
-        setError("Failed to load documents. Please try again.");
-      } finally {
-        setIsLoading(false);
       }
-    };
-    if (trainingCenterId) fetchAllDocuments();
+      setRows(allRows);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching documents:', err);
+      setError("Failed to load documents. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Initial data fetch
+  useEffect(() => {
+    if (trainingCenterId) {
+      fetchAllDocuments();
+    }
   }, [trainingCenterId]);
 
   // Fetch course templates for filter
@@ -117,24 +125,78 @@ export default function DocumentsPage() {
     fetchTemplates();
   }, [trainingCenterId]);
 
-  // Filtered rows based on selected template
-  const filteredRows =
-    selectedTemplate && selectedTemplate !== "all"
-      ? rows.filter(row =>
-          row.doc.name.toLowerCase().includes(selectedTemplate.toLowerCase())
-        )
-      : rows;
+  // Filter documents based on search query and filters
+  const filteredRows = useMemo(() => {
+    let filtered = [...rows];                                 
+    
+    // Apply search filter if search query exists
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(row => 
+        row.attendee.name?.toLowerCase().includes(query) ||
+        row.attendee.surname?.toLowerCase().includes(query) ||
+        row.doc.name?.toLowerCase().includes(query) ||
+        row.doc.description?.toLowerCase().includes(query) ||
+        row.doc.number?.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply course filter if not set to "all"
+    if (selectedTemplate !== "all") {
+      // Find the selected template name
+      const selectedCourse = courseTemplates.find(template => template.id === selectedTemplate);
       
-  // Calculate pagination values
-  const totalItems = filteredRows.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
+      if (selectedCourse?.name) {
+        // Split the course name into words for more flexible matching
+        const courseName = selectedCourse.name.toLowerCase();
+        const courseNameParts = courseName.split(/\s+/).filter((part: string) => part.length >= 3);
+        
+        // Filter documents where the document name contains key parts of the course name
+        filtered = filtered.filter(row => {
+          const docName = row.doc.name?.toLowerCase() || '';
+          
+          // Count how many significant words from the course name are in the document name
+          const matchingWords = courseNameParts.filter((part: string) => docName.includes(part));
+          
+          // Calculate the percentage of matching words
+          const matchPercentage = matchingWords.length / courseNameParts.length;
+          
+          // Require either:
+          // 1. At least 50% of the significant course name words to match, OR
+          // 2. The document name contains the full course name, OR
+          // 3. At least 2 matching words if the course name has 3+ significant words
+          return docName.includes(courseName) || 
+                 matchPercentage >= 0.5 || 
+                 (courseNameParts.length >= 3 && matchingWords.length >= 2);
+        });
+      }
+    }
+    
+    return filtered;
+  }, [rows, searchQuery, selectedTemplate, courseTemplates]);
+  
+  // Calculate total pages
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / ITEMS_PER_PAGE));
   
   // Get current page items
-  const currentPageItems = filteredRows.slice(startIndex, endIndex);
+  const paginatedRows = filteredRows.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+  
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedTemplate]);
+  
+  useEffect(() => {
+    fetchAllDocuments();
+  }, [trainingCenterId]);
 
   const handlePreview = (row: { attendee: Attendee; doc: Document; files: FileItem[] }) => {
+    // Simply store the document ID and open the preview dialog
+    // The DocumentPreviewDialog will use the files directly
+    console.log('Preview document:', row.doc.id);
     setSelectedDocument(row);
     setPreviewDialogOpen(true);
   };
@@ -174,22 +236,7 @@ export default function DocumentsPage() {
 
   const handleDocumentSuccess = () => {
     if (trainingCenterId) {
-      const fetchAllDocuments = async () => {
-        try {
-          const attendees = await getAttendees(trainingCenterId);
-          const allRows: any[] = [];
-          for (const attendee of attendees) {
-            const documents = await getAttendeeDocuments({ trainingCenterId: attendee.trainingCenterId, attendeeId: attendee.id });
-            for (const doc of documents) {
-              const files = await getDocumentFiles({ trainingCenterId: attendee.trainingCenterId, attendeeId: attendee.id, documentId: doc.id });
-              allRows.push({ attendee, doc, files });
-            }
-          }
-          setRows(allRows);
-        } catch (err) {
-          console.error("Error refreshing documents:", err);
-        }
-      };
+      // Reuse the main fetchAllDocuments function
       fetchAllDocuments();
     }
   };
@@ -257,7 +304,7 @@ export default function DocumentsPage() {
       header: <div className="flex items-center justify-center w-full">Verified</div>,
       cell: (row: any) => (
         <div className="flex items-center justify-center w-full">
-          {row.doc.isVerified ? (
+          {row.doc.verified || row.doc.isVerified ? (
             <Badge variant="success"><Check className="h-4 w-4 mr-1 inline" />Verified</Badge>
           ) : (
             <Badge variant="outline">Not Verified</Badge>
@@ -317,21 +364,27 @@ export default function DocumentsPage() {
           <div className="bg-destructive/10 text-destructive p-4 rounded-md">{error}</div>
         )}
         <div className="flex flex-col space-y-4">
-          <h2 className="text-xl font-semibold">All Documents</h2>
-          {/* Course Template Filter */}
-          <div className="flex flex-wrap gap-4 items-center">
-            <div>
-              <Select value={selectedTemplate} onValueChange={(value) => {
-                setSelectedTemplate(value);
-                setCurrentPage(1); // Reset to first page when filtering
-              }}>
-                <SelectTrigger className="w-[250px]">
-                  <SelectValue placeholder="Filter by Course Template" />
+          {/* Filter and Search Controls */}
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">All Documents</h2>
+            <div className="flex gap-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search documents..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 w-[250px]"
+                />
+              </div>
+              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filter by course" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Templates</SelectItem>
-                  {courseTemplates.map((template: any) => (
-                    <SelectItem key={template.id} value={template.name}>
+                  <SelectItem value="all">All Courses</SelectItem>
+                  {courseTemplates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
                       {template.name}
                     </SelectItem>
                   ))}
@@ -342,7 +395,7 @@ export default function DocumentsPage() {
         </div>
         <CustomTable
           columns={columns}
-          data={currentPageItems}
+          data={paginatedRows}
           isLoading={isLoading}
           rowRender={(row, index) => (
             <tr 
@@ -410,10 +463,10 @@ export default function DocumentsPage() {
         />
         
         {/* Pagination Controls */}
-        {totalItems > 0 && (
-          <div className="flex items-center justify-between">
+        {filteredRows.length > 0 && (
+          <div className="flex items-center justify-between mt-4">
             <div className="text-sm text-muted-foreground">
-              Showing {startIndex + 1} to {endIndex} of {totalItems} records
+              Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredRows.length)} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredRows.length)} of {filteredRows.length} records
             </div>
             <div className="flex items-center space-x-6">
               <Button
