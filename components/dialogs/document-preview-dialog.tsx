@@ -224,18 +224,23 @@ export function DocumentPreviewDialog({
     try {
       setIsDeleting(true)
       
+      const fileId = fileToDelete.id
+      if (!fileId) {
+        throw new Error('File ID is undefined')
+      }
+      
       await deleteFile({
         trainingCenterId,
         attendeeId,
         documentId,
-        fileId: fileToDelete.id
+        fileId
       })
       
       toast.success('File deleted successfully')
       setShowDeleteConfirm(false)
       
       const newFileContents = { ...fileContents }
-      delete newFileContents[fileToDelete.id]
+      delete newFileContents[fileId]
       setFileContents(newFileContents)
       
       if (onFileDeleted) {

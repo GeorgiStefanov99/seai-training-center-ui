@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils"
 import { format, parse } from "date-fns"
 import { CalendarIcon, Loader2, X, Upload, FileText, Check, Infinity } from "lucide-react"
-import { Document, CreateDocumentRequest, DOCUMENT_TYPES } from "@/types/document"
+import { Document, CreateDocumentRequest } from "@/types/document"
 import { FileUploader } from "@/components/file-uploader"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
