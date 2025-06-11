@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { PageLayout } from "@/components/page-layout";
 import { CustomTable } from "@/components/ui/custom-table";
 import { Column } from "@/types/table";
@@ -33,11 +33,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function DocumentsPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const trainingCenterId = user?.userId || "";
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetchInProgress, setIsFetchInProgress] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<any[]>([]);
+  const initialFetchDone = useRef(false);
   
   // Pagination state
   const ITEMS_PER_PAGE = 20;
@@ -56,44 +58,92 @@ export default function DocumentsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Function to fetch all documents
-  const fetchAllDocuments = async () => {
+  const fetchAllDocuments = useCallback(async () => {
+    console.log('📋 Starting fetchAllDocuments with trainingCenterId:', trainingCenterId);
+    
+    // Check if we have a valid trainingCenterId
+    if (!trainingCenterId) {
+      console.error('Training center ID is missing or empty');
+      setError("User authentication required. Please log in again.");
+      return;
+    }
+    
+    // Use a flag to track if we've already started fetching to prevent duplicate calls
+    if (isFetchInProgress) {
+      console.log('📋 Already fetching data, skipping duplicate fetch');
+      return;
+    }
+    
     setIsLoading(true);
+    setIsFetchInProgress(true);
+    
     try {
-      const response = await getPaginatedAttendees(trainingCenterId, { sortBy: 'name' });
-      const allAttendees = response.attendees;
+      console.log('📋 Fetching attendees for training center:', trainingCenterId);
+      let allAttendees: Attendee[] = [];
+      try {
+        const response = await getPaginatedAttendees(trainingCenterId, { sortBy: 'name' });
+        allAttendees = response.attendees;
+        console.log('📋 Received attendees:', allAttendees.length);
+      } catch (attendeeErr) {
+        console.error('Error fetching attendees:', attendeeErr);
+        setError("Failed to load attendees. Please try again.");
+        setIsLoading(false);
+        setIsFetchInProgress(false);
+        return;
+      }
       
       // Process documents for each attendee
       const allRows: any[] = [];
-      for (const attendee of allAttendees) {
-        // Get documents for this attendee (without files)
-        const documents = await getAttendeeDocuments({ 
-          trainingCenterId: attendee.trainingCenterId, 
-          attendeeId: attendee.id
+      
+      // Process attendees in batches to avoid too many parallel requests
+      const batchSize = 5;
+      for (let i = 0; i < allAttendees.length; i += batchSize) {
+        const attendeeBatch = allAttendees.slice(i, i + batchSize);
+        const batchPromises = attendeeBatch.map(async (attendee) => {
+          try {
+            // Get documents for this attendee
+            const documents = await getAttendeeDocuments({ 
+              trainingCenterId: attendee.trainingCenterId, 
+              attendeeId: attendee.id
+            });
+            
+            // For each document, prepare to fetch files
+            const documentPromises = documents.map(async (doc) => {
+              try {
+                // Fetch files for this document
+                const files = await getDocumentFiles({
+                  trainingCenterId: attendee.trainingCenterId,
+                  attendeeId: attendee.id,
+                  documentId: doc.id
+                });
+                
+                return { attendee, doc, files };
+              } catch (fileErr) {
+                console.error(`Error fetching files for document ${doc.id}:`, fileErr);
+                return { attendee, doc, files: [] };
+              }
+            });
+            
+            // Wait for all document file fetches to complete
+            return await Promise.all(documentPromises);
+          } catch (docErr) {
+            console.error(`Error fetching documents for attendee ${attendee.id}:`, docErr);
+            return [];
+          }
         });
         
-        // For each document, fetch its files separately
-        for (const doc of documents) {
-          // Fetch files for this document
-          let files: FileItem[] = [];
-          try {
-            files = await getDocumentFiles({
-              trainingCenterId: attendee.trainingCenterId,
-              attendeeId: attendee.id,
-              documentId: doc.id
-            });
-          } catch (fileErr) {
-            console.error(`Error fetching files for document ${doc.id}:`, fileErr);
-            files = [];
-          }
-          
-          // Add the document and its files to our rows
-          allRows.push({ 
-            attendee, 
-            doc, 
-            files: files
+        // Wait for this batch of attendees to complete
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Flatten the results and add to allRows
+        batchResults.forEach(attendeeResults => {
+          attendeeResults.forEach(result => {
+            allRows.push(result);
           });
-        }
+        });
       }
+      
+      console.log('📋 Processed all documents, total rows:', allRows.length);
       setRows(allRows);
       setError(null);
     } catch (err) {
@@ -101,33 +151,64 @@ export default function DocumentsPage() {
       setError("Failed to load documents. Please try again.");
     } finally {
       setIsLoading(false);
-    }
-  };
-  
-  // Initial data fetch
-  useEffect(() => {
-    if (trainingCenterId) {
-      fetchAllDocuments();
+      setIsFetchInProgress(false);
     }
   }, [trainingCenterId]);
+  
+  // Initial data fetch - only run once when auth is complete
+  useEffect(() => {
+    // Only fetch data when auth is complete and we have a valid trainingCenterId
+    console.log('📋 Documents page useEffect running with:', {
+      authLoading,
+      trainingCenterId,
+      userAuthenticated: !!user?.isAuthenticated,
+      initialFetchDone: initialFetchDone.current
+    });
+    
+    // Only fetch if authentication is complete, we have a valid ID, and we haven't already fetched
+    if (!authLoading && trainingCenterId && user?.isAuthenticated && !initialFetchDone.current && !isFetchInProgress) {
+      console.log('📋 Conditions met, calling fetchAllDocuments');
+      initialFetchDone.current = true;
+      fetchAllDocuments();
+    } else {
+      console.log('📋 Skipping fetchAllDocuments, conditions not met or already fetched');
+    }
+  }, [trainingCenterId, authLoading, user?.isAuthenticated, isFetchInProgress]);
 
   // Fetch course templates for filter
   useEffect(() => {
+    console.log('📋 Templates useEffect running with:', {
+      authLoading,
+      trainingCenterId
+    });
+    
     const fetchTemplates = async () => {
-      if (!trainingCenterId) return;
+      if (!trainingCenterId || authLoading) {
+        console.log('📋 Skipping template fetch, conditions not met');
+        return;
+      }
+      
+      console.log('📋 Fetching course templates for:', trainingCenterId);
       try {
         const templates = await getCourseTemplates(trainingCenterId);
+        console.log('📋 Received templates:', templates.length);
         setCourseTemplates(templates);
       } catch (err) {
-        // Optionally handle error
+        console.error('Error fetching course templates:', err);
       }
     };
+    
     fetchTemplates();
-  }, [trainingCenterId]);
+  }, [trainingCenterId, authLoading, setCourseTemplates]);
 
-  // Filter documents based on search query and filters
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedTemplate]);
+  
+  // Filter rows based on search query and template selection
   const filteredRows = useMemo(() => {
-    let filtered = [...rows];                                 
+    let filtered = [...rows];
     
     // Apply search filter if search query exists
     if (searchQuery.trim()) {
@@ -184,15 +265,7 @@ export default function DocumentsPage() {
     currentPage * ITEMS_PER_PAGE
   );
   
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, selectedTemplate]);
-  
-  useEffect(() => {
-    fetchAllDocuments();
-  }, [trainingCenterId]);
-
+  // Handle document preview
   const handlePreview = (row: { attendee: Attendee; doc: Document; files: FileItem[] }) => {
     // Simply store the document ID and open the preview dialog
     // The DocumentPreviewDialog will use the files directly
