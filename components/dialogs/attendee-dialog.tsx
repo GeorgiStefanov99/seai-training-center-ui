@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { Attendee } from "@/types/attendee"
+import { Attendee, AttendeeWithDetails } from "@/types/attendee"
 import { AttendeeForm, AttendeeFormValues } from "@/components/forms/attendee-form"
 import { createAttendee, updateAttendee } from "@/services/attendeeService"
 import { useAuth } from "@/hooks/useAuth"
@@ -117,8 +117,8 @@ export function AttendeeDialog({
 interface DeleteAttendeeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  attendee?: Attendee
-  onConfirm: (attendee: Attendee) => Promise<void>
+  attendee?: AttendeeWithDetails
+  onConfirm: (attendee: AttendeeWithDetails) => Promise<void>
   isDeleting: boolean
 }
 

@@ -1,4 +1,8 @@
 // Define the possible ranks for attendees
+import { Remark } from "./remark";
+import { Course } from "./course";
+import { WaitlistRecord } from "./course-template";
+
 export type AttendeeRank = 
   | "CAPTAIN"
   | "CHIEF_OFFICER"
@@ -100,13 +104,25 @@ export interface CreateAttendeeRequest extends AttendeeBase {}
 // Interface for updating an existing attendee (PUT request)
 export interface UpdateAttendeeRequest extends AttendeeBase {}
 
-// Full attendee interface with all properties (GET response)
+
+// Attendee courses interface
+export interface GetAttendeeCourses {
+  activeCourses: Course[];
+  pastCourses: Course[];
+}
+
+// Basic attendee interface with core properties (GET response for getAttendeeById)
 export interface Attendee extends AttendeeBase {
   id: string;
   trainingCenterId: string;
-  courseId?: string;
   userId?: string;
-  onlineCourseId?: string;
+}
+
+// Extended attendee interface with all related data (GET response for getPaginatedAttendees)
+export interface AttendeeWithDetails extends Attendee {
+  remarks: Remark[];
+  courses: GetAttendeeCourses;
+  waitlistRecords: WaitlistRecord[];
 }
 
 // Pagination parameters for requests
@@ -121,7 +137,7 @@ export type GetAttendeesResponse = Attendee[];
 
 // Response type for the paginated GET attendees endpoint
 export interface PaginatedAttendeesResponse {
-  attendees: Attendee[];
+  attendees: AttendeeWithDetails[];
   totalElements: number;
   totalPages: number;
   currentPage: number;

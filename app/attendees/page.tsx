@@ -4,11 +4,9 @@ import React, { useState, useEffect, useMemo } from "react"
 import { PageLayout } from "@/components/page-layout"
 import { CustomTable } from "@/components/ui/custom-table"
 import { Column } from "@/types/table"
-import { Attendee } from "@/types/attendee"
+import { Attendee, AttendeeWithDetails, PaginationParams } from '@/types/attendee';
 import { getPaginatedAttendees, deleteAttendee } from "@/services/attendeeService"
-import { getAttendeeEnrolledCourses, getAttendeePastCourses } from "@/services/attendeeCourseService"
-import { getWaitlistRecordsByAttendee } from "@/services/waitlistService"
-import { createRemark, updateRemark, deleteRemark, getAttendeeRemarks } from "@/services/remarkService"
+import { createRemark, updateRemark, deleteRemark } from "@/services/remarkService"
 import { RANK_LABELS } from "@/lib/rank-labels"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, Pencil, Trash2, Search, ChevronRight, MessageSquare, MoreHorizontal, Edit, Plus, BookOpen, Clock } from "lucide-react"
@@ -32,7 +30,7 @@ import {
 export default function AttendeesPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const [attendees, setAttendees] = useState<Attendee[]>([])
+  const [attendees, setAttendees] = useState<AttendeeWithDetails[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -41,7 +39,7 @@ export default function AttendeesPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [selectedAttendee, setSelectedAttendee] = useState<Attendee | undefined>(undefined)
+  const [selectedAttendee, setSelectedAttendee] = useState<AttendeeWithDetails | undefined>(undefined)
   const [isDeleting, setIsDeleting] = useState(false)
   
   // Course and waitlist counts
@@ -94,59 +92,58 @@ export default function AttendeesPage() {
     });
   }, [attendees, searchQuery]);
 
-  // Function to fetch remarks for an attendee
-  const fetchAttendeeRemarks = async (attendeeId: string) => {
-    if (!trainingCenterId) return [];
+  // Function to process remarks from attendees
+  const processAttendeeRemarks = (attendeesList: AttendeeWithDetails[]) => {
+    if (!attendeesList || attendeesList.length === 0) return;
     
     try {
-      return await getAttendeeRemarks({ trainingCenterId, attendeeId });
-    } catch (error) {
-      console.error(`Error fetching remarks for attendee ${attendeeId}:`, error);
-      return [];
-    }
-  };
-  
-  // Function to fetch all remarks for all attendees
-  const fetchAllRemarks = async (attendeesList: Attendee[]) => {
-    if (!trainingCenterId || !attendeesList.length) return;
-    
-    try {
-      setIsLoadingRemarks(true);
-      
       // Create a new object to store remarks
       const newRemarks: Record<string, Remark[]> = {};
       
-      // Process attendees in batches to avoid overwhelming the API
-      const batchSize = 10;
-      for (let i = 0; i < attendeesList.length; i += batchSize) {
-        const batch = attendeesList.slice(i, i + batchSize);
-        
-        // Process each attendee in the batch concurrently
-        const promises = batch
-          .filter(attendee => attendee.id) // Filter out attendees without IDs
-          .map(async (attendee) => {
-            try {
-              const remarks = await getAttendeeRemarks({ trainingCenterId, attendeeId: attendee.id! });
-              return { attendeeId: attendee.id!, remarks };
-            } catch (error) {
-              console.error(`Error fetching remarks for attendee ${attendee.id}:`, error);
-              return { attendeeId: attendee.id!, remarks: [] };
-            }
-          });
-        
-        const results = await Promise.all(promises);
-        
-        // Add results to the newRemarks object
-        results.forEach(({ attendeeId, remarks }) => {
-          newRemarks[attendeeId] = remarks;
-        });
-      }
+      // Extract remarks from each attendee
+      attendeesList.forEach(attendee => {
+        if (attendee.id) {
+          newRemarks[attendee.id] = attendee.remarks || [];
+        }
+      });
       
       setAttendeeRemarks(newRemarks);
     } catch (error) {
-      console.error("Error fetching all remarks:", error);
+      console.error("Error processing attendee remarks:", error);
+    }
+  };
+
+  // Function to process course and waitlist counts from attendees
+  const processAttendeeCounts = (attendeesList: AttendeeWithDetails[]) => {
+    if (attendeesList.length === 0) return;
+    
+    setIsLoadingCounts(true);
+    const courseCounts: Record<string, number> = {};
+    const pastCourseCounts: Record<string, number> = {};
+    const waitlistCounts: Record<string, number> = {};
+    
+    try {
+      // Process each attendee
+      for (const attendee of attendeesList) {
+        if (attendee.id) {
+          // Get active courses count
+          courseCounts[attendee.id] = attendee.courses?.activeCourses?.length || 0;
+          
+          // Get past courses count
+          pastCourseCounts[attendee.id] = attendee.courses?.pastCourses?.length || 0;
+          
+          // Get waitlist records count
+          waitlistCounts[attendee.id] = attendee.waitlistRecords?.length || 0;
+        }
+      }
+      
+      setActiveCourseCount(courseCounts);
+      setPastCourseCount(pastCourseCounts);
+      setWaitlistCount(waitlistCounts);
+    } catch (error) {
+      console.error("Error processing attendee counts:", error);
     } finally {
-      setIsLoadingRemarks(false);
+      setIsLoadingCounts(false);
     }
   };
 
@@ -172,7 +169,7 @@ export default function AttendeesPage() {
         }
         
         const response = await getPaginatedAttendees(trainingCenterId, {
-          page: currentPage - 1, // API uses 0-based indexing
+          page: currentPage,
           size: ITEMS_PER_PAGE,
           sortBy
         })
@@ -182,12 +179,11 @@ export default function AttendeesPage() {
         setTotalPages(response.totalPages)
         setError(null)
         
-        // Fetch remarks for all attendees
-        await fetchAllRemarks(response.attendees);
+        // Process remarks from the response
+        processAttendeeRemarks(response.attendees);
         
-        // Fetch course and waitlist counts for all attendees
-        console.log('Calling fetchAllCounts after attendees loaded');
-        await fetchAllCounts(response.attendees);
+        // Process course and waitlist counts from the response
+        processAttendeeCounts(response.attendees);
       } catch (err) {
         console.error('Error fetching attendees:', err)
         setError('Failed to load attendees. Please try again later.')
@@ -200,72 +196,6 @@ export default function AttendeesPage() {
     fetchInitialAttendees()
   }, [trainingCenterId, currentPage, sortField])
 
-  // Function to fetch all counts for all attendees
-  const fetchAllCounts = async (attendeesList: Attendee[]) => {
-    if (!trainingCenterId || attendeesList.length === 0) return;
-    
-    setIsLoadingCounts(true);
-    const courseCounts: Record<string, number> = {};
-    const pastCourseCounts: Record<string, number> = {};
-    const waitlistCounts: Record<string, number> = {};
-    
-    try {
-      // Process each attendee sequentially
-      for (const attendee of attendeesList) {
-        if (attendee.id) {
-          try {
-            // Get enrolled courses
-            const courses = await getAttendeeEnrolledCourses({
-              trainingCenterId,
-              attendeeId: attendee.id
-            });
-            courseCounts[attendee.id] = courses.length;
-            
-            // Get past courses
-            const pastCourses = await getAttendeePastCourses({
-              trainingCenterId,
-              attendeeId: attendee.id
-            });
-            pastCourseCounts[attendee.id] = pastCourses.length;
-            
-            // Get waitlist records
-            const waitlistRecords = await getWaitlistRecordsByAttendee({
-              trainingCenterId,
-              attendeeId: attendee.id
-            });
-            waitlistCounts[attendee.id] = waitlistRecords.length;
-            
-          } catch (err) {
-            console.error(`Error fetching data for attendee ${attendee.id}:`, err);
-            courseCounts[attendee.id] = 0;
-            pastCourseCounts[attendee.id] = 0;
-            waitlistCounts[attendee.id] = 0;
-          }
-        }
-      }
-      
-      setActiveCourseCount(courseCounts);
-      setPastCourseCount(pastCourseCounts);
-      setWaitlistCount(waitlistCounts);
-    } catch (error) {
-      console.error("Error fetching attendee counts:", error);
-    } finally {
-      setIsLoadingCounts(false);
-    }
-  };
-  
-  // Helper function to get safe sort field
-  const getSafeSortField = (field: SortField | null): string => {
-    // Default sort field
-    if (!field) return 'name';
-    
-    // Temporarily avoid using problematic sort fields until backend is updated
-    const supportedSortFields = ['name', 'email', 'telephone', 'rank'];
-    
-    // Return the field if supported, otherwise default to name
-    return supportedSortFields.includes(field) ? field : 'name';
-  };
-  
   // Function to fetch paginated attendees
   const fetchAttendees = async () => {
     if (!trainingCenterId) {
@@ -284,7 +214,7 @@ export default function AttendeesPage() {
       }
       
       const response = await getPaginatedAttendees(trainingCenterId, {
-        page: currentPage - 1, // API uses 0-based indexing
+        page: currentPage, // API uses 0-based indexing
         size: ITEMS_PER_PAGE,
         sortBy
       })
@@ -294,11 +224,11 @@ export default function AttendeesPage() {
       setTotalPages(response.totalPages)
       setError(null)
       
-      // Also refresh remarks
-      await fetchAllRemarks(response.attendees);
+      // Process remarks from the response
+      processAttendeeRemarks(response.attendees);
       
-      // Fetch course and waitlist counts
-      await fetchAllCounts(response.attendees);
+      // Process course and waitlist counts from the response
+      processAttendeeCounts(response.attendees);
     } catch (err) {
       console.error("Error fetching attendees:", err)
       setError("Failed to load attendees. Please try again.")
@@ -309,13 +239,8 @@ export default function AttendeesPage() {
 
   // Refresh the attendees list
   const refreshAttendees = async () => {
-    if (!trainingCenterId) {
-      toast.error("Training center ID is required")
-      return
-    }
-    
     try {
-      setIsLoading(true)
+      setIsLoading(true);
       
       // Use server-side sorting if a sort field is selected
       let sortBy = 'name';
@@ -324,30 +249,31 @@ export default function AttendeesPage() {
       }
       
       const response = await getPaginatedAttendees(trainingCenterId, {
-        page: currentPage - 1, // API uses 0-based indexing
+        page: currentPage, // API uses 0-based indexing
         size: ITEMS_PER_PAGE,
         sortBy
-      })
+      });
       
-      setAttendees(response.attendees)
-      setTotalElements(response.totalElements)
-      setTotalPages(response.totalPages)
-      setError(null)
+      setAttendees(response.attendees);
+      setTotalElements(response.totalElements);
+      setTotalPages(response.totalPages);
+      setError(null);
       
-      // Also refresh remarks
-      await fetchAllRemarks(response.attendees);
+      // Process remarks from the response
+      processAttendeeRemarks(response.attendees);
       
-      // Fetch course and waitlist counts
-      await fetchAllCounts(response.attendees);
+      // Process course and waitlist counts from the response
+      processAttendeeCounts(response.attendees);
       
-      toast.success("Attendees list refreshed")
+      toast.success("Attendees refreshed successfully");
     } catch (err) {
-      console.error('Error refreshing attendees:', err)
-      toast.error('Failed to refresh attendees. Please try again later.')
+      console.error("Error refreshing attendees:", err);
+      setError("Failed to refresh attendees. Please try again.");
+      toast.error("Failed to refresh attendees");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Handler functions
   const handleAddNew = () => {
@@ -398,18 +324,18 @@ export default function AttendeesPage() {
     fetchAttendees();
   }
 
-  const handleEdit = (attendee: Attendee) => {
+  const handleEdit = (attendee: AttendeeWithDetails) => {
     setSelectedAttendee(attendee)
     setEditDialogOpen(true)
   }
 
-  const handleDelete = (attendee: Attendee) => {
+  const handleDelete = (attendee: AttendeeWithDetails) => {
     setSelectedAttendee(attendee)
     setDeleteDialogOpen(true)
   }
   
   // Handle delete confirmation
-  const handleDeleteConfirm = async (attendee: Attendee) => {
+  const handleDeleteConfirm = async (attendee: AttendeeWithDetails) => {
     if (!trainingCenterId) {
       toast.error("Training center ID is required")
       return
@@ -437,7 +363,7 @@ export default function AttendeesPage() {
   }
 
   // Remark handler functions
-  const handleAddRemark = (attendee: Attendee) => {
+  const handleAddRemark = (attendee: AttendeeWithDetails) => {
     // First set the selected attendee
     setSelectedAttendee(attendee)
     // Then open the dialog with a slight delay to ensure state is set
@@ -446,7 +372,7 @@ export default function AttendeesPage() {
     }, 0)
   }
 
-  const handleEditRemark = (attendee: Attendee, remark: Remark) => {
+  const handleEditRemark = (attendee: AttendeeWithDetails, remark: Remark) => {
     // First set the selected attendee and remark
     setSelectedAttendee(attendee)
     setSelectedRemark(remark)
@@ -456,7 +382,7 @@ export default function AttendeesPage() {
     }, 0)
   }
 
-  const handleDeleteRemark = (attendee: Attendee, remark: Remark) => {
+  const handleDeleteRemark = (attendee: AttendeeWithDetails, remark: Remark) => {
     setSelectedAttendee(attendee)
     setSelectedRemark(remark)
     setDeleteRemarkDialogOpen(true)
@@ -529,7 +455,7 @@ export default function AttendeesPage() {
     {
       key: "rank",
       header: <div className="text-center w-full">Rank</div>,
-      cell: (row: Attendee) => RANK_LABELS[row.rank] || row.rank,
+      cell: (row: AttendeeWithDetails) => row.rank ? RANK_LABELS[row.rank] : "-",
       cellClassName: "text-center"
     },
     {
@@ -539,7 +465,7 @@ export default function AttendeesPage() {
           Active Courses
         </div>
       ),
-      cell: (row: Attendee) => {
+      cell: (row: AttendeeWithDetails) => {
         if (!row.id) {
           return <span className="text-muted-foreground text-xs text-center w-full block">No ID</span>;
         }
@@ -565,7 +491,7 @@ export default function AttendeesPage() {
           Past Courses
         </div>
       ),
-      cell: (row: Attendee) => {
+      cell: (row: AttendeeWithDetails) => {
         if (!row.id) {
           return <span className="text-muted-foreground text-xs text-center w-full block">No ID</span>;
         }
@@ -591,7 +517,7 @@ export default function AttendeesPage() {
           Waitlists
         </div>
       ),
-      cell: (row: Attendee) => {
+      cell: (row: AttendeeWithDetails) => {
         if (!row.id) {
           return <span className="text-muted-foreground text-xs text-center w-full block">No ID</span>;
         }
@@ -613,7 +539,7 @@ export default function AttendeesPage() {
     {
       key: "remarks",
       header: <div className="text-center w-full">Remarks</div>,
-      cell: (row: Attendee) => {
+      cell: (row: AttendeeWithDetails) => {
         if (!row.id) {
           return <span className="text-muted-foreground text-xs text-center w-full block">No ID</span>;
         }
@@ -644,7 +570,7 @@ export default function AttendeesPage() {
     {
       key: "actions",
       header: <div className="text-center w-full">Actions</div>,
-      cell: (row: Attendee) => {
+      cell: (row: AttendeeWithDetails) => {
         const remarks = row.id ? attendeeRemarks[row.id] || [] : [];
         
         return (

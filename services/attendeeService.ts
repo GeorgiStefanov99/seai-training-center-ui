@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { 
   Attendee, 
+  AttendeeWithDetails,
   CreateAttendeeRequest, 
   GetAttendeesResponse, 
   UpdateAttendeeRequest,
@@ -77,10 +78,10 @@ export const getAttendees = async (trainingCenterId: string): Promise<Attendee[]
 };
 
 /**
- * Fetch paginated attendees for a training center
+ * Fetch paginated attendees for a training center with all related data
  * @param trainingCenterId The ID of the training center
  * @param params Pagination parameters (page, size, sortBy)
- * @returns Promise with paginated attendees response
+ * @returns Promise with paginated attendees response including remarks, courses, and waitlist records
  */
 export const getPaginatedAttendees = async (
   trainingCenterId: string, 
@@ -91,8 +92,8 @@ export const getPaginatedAttendees = async (
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     
     // Default values
-    const page = params.page ?? 0;
-    const size = params.size ?? 10;
+    const page = params.page ?? 1;
+    const size = params.size ?? 1000;
     const sortBy = params.sortBy ?? 'name';
     
     const response = await axios.get<PaginatedAttendeesResponse>(
@@ -108,15 +109,15 @@ export const getPaginatedAttendees = async (
     );
     return response.data;
   } catch (error) {
-    console.error('Error fetching paginated attendees:', error);
+    console.error('Error fetching paginated attendees with details:', error);
     throw error;
   }
 };
 
 /**
- * Fetch a single attendee by ID
+ * Fetch a single attendee by ID (basic version without related data)
  * @param params Object containing trainingCenterId and attendeeId
- * @returns Promise with the attendee data
+ * @returns Promise with the basic attendee data
  */
 export const getAttendeeById = async (params: AttendeeApiParams): Promise<Attendee> => {
   const { trainingCenterId, attendeeId } = params;
@@ -133,6 +134,7 @@ export const getAttendeeById = async (params: AttendeeApiParams): Promise<Attend
       `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/attendees/${attendeeId}`,
       { headers }
     );
+    
     return response.data;
   } catch (error) {
     console.error(`Error fetching attendee with ID ${attendeeId}:`, error);
