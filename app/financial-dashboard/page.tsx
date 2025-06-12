@@ -128,6 +128,10 @@ export default function FinancialDashboard() {
       : true
   }) || []
 
+  // Calculate total and average profit for filtered courses
+  const totalProfit = filteredCourses.reduce((sum, course) => sum + course.profit, 0);
+  const avgProfit = filteredCourses.length > 0 ? totalProfit / filteredCourses.length : 0;
+
   // Render loading skeleton if data is loading
   if (isLoading) {
     return (
@@ -363,6 +367,17 @@ export default function FinancialDashboard() {
           <CardDescription>Most profitable courses by revenue and profit margin</CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Profit summary row */}
+          <div className="flex flex-wrap gap-6 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-muted-foreground">Total Profit:</span>
+              <span className="text-lg font-bold">{formatCurrency(totalProfit)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-muted-foreground">Average Profit:</span>
+              <span className="text-lg font-bold">{formatCurrency(avgProfit)}</span>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
