@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Loader2, Plus, X } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
-import { getAttendees } from "@/services/attendeeService"
+import { getPaginatedAttendees } from "@/services/attendeeService"
 import { sendCourseSchedule, SendCourseScheduleRequest } from "@/services/courseService"
 import { Attendee } from "@/types/attendee"
 import { toast } from "sonner"
@@ -54,8 +54,8 @@ export function SendScheduleDialog({ open, onOpenChange }: SendScheduleDialogPro
     
     try {
       setIsLoading(true)
-      const data = await getAttendees(trainingCenterId)
-      setAttendees(data)
+      const data = await getPaginatedAttendees(trainingCenterId)
+      setAttendees(data.attendees)
     } catch (error) {
       console.error("Error fetching attendees:", error)
       toast.error("Failed to fetch attendees")
