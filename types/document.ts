@@ -6,11 +6,10 @@ export interface Document {
   issueDate?: string;
   expiryDate?: string;
   isVerified: boolean;
+  verified?: boolean;
   attendeeId: string;
   path?: string;
-  files?: FileItem[];
-  documentFiles?: any[]; // API returns documentFiles instead of files
-  verified?: boolean; // API uses verified instead of isVerified
+  documentFiles?: FileItem[]; // Changed from files to documentFiles to match backend
 }
 
 // File types

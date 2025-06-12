@@ -24,12 +24,20 @@ export const getAttendeeDocuments = async (params: DocumentApiParams): Promise<D
     const token = getAuthToken();
     const headers = getAuthHeaders(token);
     
+    // Always include files since the backend now returns them by default
     const response = await axios.get<Document[]>(
-      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/attendees/${attendeeId}/documents`,
+      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/attendees/${attendeeId}/documents?includeFiles=true`,
       { headers }
     );
     
-    return response.data;
+    // Transform the response to match our Document interface
+    const documents = response.data.map(doc => ({
+      ...doc,
+      isVerified: doc.verified || false, // Map verified to isVerified
+      documentFiles: doc.documentFiles || [] // Ensure documentFiles is always an array
+    }));
+    
+    return documents;
   } catch (error) {
     console.error('Error fetching attendee documents:', error);
     throw error;
