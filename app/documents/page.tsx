@@ -10,7 +10,7 @@ import { getPaginatedAttendees } from '@/services/attendeeService';
 import { getAttendeeDocuments, deleteDocument } from "@/services/documentService";
 import { getDocumentFiles, extractFileIdOrName } from "@/services/fileService";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Minus } from "lucide-react";
 import { Loader2, Eye, Edit, Trash2, Check, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -82,6 +82,10 @@ export default function DocumentsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<{ attendee: Attendee; doc: Document; files: FileItem[] } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
 
   // Function to fetch all documents
   const fetchAllDocuments = useCallback(async () => {
@@ -224,10 +228,23 @@ export default function DocumentsPage() {
     setCurrentPage(1);
   }, [searchQuery, selectedTemplate]);
   
-  // Filter rows based on search query and template selection
+  // Sorting handler
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else if (sortDirection === 'desc') {
+        setSortColumn(null);
+        setSortDirection(null);
+      } else setSortDirection('asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Filter and sort rows based on search query, template selection, and sorting
   const filteredRows = useMemo(() => {
     let filtered = [...rows];
-    
     // Apply search filter if search query exists
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
@@ -239,27 +256,21 @@ export default function DocumentsPage() {
         row.doc.number?.toLowerCase().includes(query)
       );
     }
-    
     // Apply course filter if not set to "all"
     if (selectedTemplate !== "all") {
       // Find the selected template name
       const selectedCourse = courseTemplates.find(template => template.id === selectedTemplate);
-      
       if (selectedCourse?.name) {
         // Split the course name into words for more flexible matching
         const courseName = selectedCourse.name.toLowerCase();
         const courseNameParts = courseName.split(/\s+/).filter((part: string) => part.length >= 3);
-        
         // Filter documents where the document name contains key parts of the course name
         filtered = filtered.filter(row => {
           const docName = row.doc.name?.toLowerCase() || '';
-          
           // Count how many significant words from the course name are in the document name
           const matchingWords = courseNameParts.filter((part: string) => docName.includes(part));
-          
           // Calculate the percentage of matching words
           const matchPercentage = matchingWords.length / courseNameParts.length;
-          
           // Require either:
           // 1. At least 50% of the significant course name words to match, OR
           // 2. The document name contains the full course name, OR
@@ -270,9 +281,23 @@ export default function DocumentsPage() {
         });
       }
     }
-    
+    // Sort filtered rows if needed
+    if (sortColumn && sortDirection) {
+      filtered.sort((a, b) => {
+        let aValue = a.doc[sortColumn];
+        let bValue = b.doc[sortColumn];
+        if (aValue && bValue) {
+          aValue = new Date(aValue).getTime();
+          bValue = new Date(bValue).getTime();
+        }
+        if (!aValue) return 1;
+        if (!bValue) return -1;
+        if (sortDirection === 'asc') return aValue - bValue;
+        return bValue - aValue;
+      });
+    }
     return filtered;
-  }, [rows, searchQuery, selectedTemplate, courseTemplates]);
+  }, [rows, searchQuery, selectedTemplate, courseTemplates, sortColumn, sortDirection]);
   
   // Calculate total pages
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / ITEMS_PER_PAGE));
@@ -376,17 +401,31 @@ export default function DocumentsPage() {
     },
     {
       key: "issueDate",
-      header: <div className="flex items-center justify-center w-full">Issue Date</div>,
+      header: (
+        <div className="flex items-center justify-center w-full cursor-pointer select-none" onClick={() => handleSort('issueDate')}>
+          Issue Date
+          {sortColumn === 'issueDate' ? (
+            sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4 inline" /> : sortDirection === 'desc' ? <ChevronDown className="ml-1 h-4 w-4 inline" /> : <Minus className="ml-1 h-4 w-4 inline" />
+          ) : null}
+        </div>
+      ),
       cell: (row: any) => (
-        <div className="flex items-center justify-center w-full">{row.doc.issueDate ? format(new Date(row.doc.issueDate), 'PPP') : '-'}</div>
+        <div className="flex items-center justify-center w-full">{row.doc.issueDate ? format(new Date(row.doc.issueDate), 'dd/MM/yyyy') : '-'}</div>
       ),
       cellClassName: "text-center align-middle px-3 py-2"
     },
     {
       key: "expiryDate",
-      header: <div className="flex items-center justify-center w-full">Expiry Date</div>,
+      header: (
+        <div className="flex items-center justify-center w-full cursor-pointer select-none" onClick={() => handleSort('expiryDate')}>
+          Expiry Date
+          {sortColumn === 'expiryDate' ? (
+            sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4 inline" /> : sortDirection === 'desc' ? <ChevronDown className="ml-1 h-4 w-4 inline" /> : <Minus className="ml-1 h-4 w-4 inline" />
+          ) : null}
+        </div>
+      ),
       cell: (row: any) => (
-        <div className="flex items-center justify-center w-full">{row.doc.expiryDate ? format(new Date(row.doc.expiryDate), 'PPP') : '-'}</div>
+        <div className="flex items-center justify-center w-full">{row.doc.expiryDate ? format(new Date(row.doc.expiryDate), 'dd/MM/yyyy') : '-'}</div>
       ),
       cellClassName: "text-center align-middle px-3 py-2"
     },
@@ -505,8 +544,8 @@ export default function DocumentsPage() {
               </td>
               <td className="px-3 py-2 text-xs text-center font-medium">{row.doc.name}</td>
               <td className="px-3 py-2 text-xs text-center">{row.doc.number}</td>
-              <td className="px-3 py-2 text-xs text-center">{row.doc.issueDate ? format(new Date(row.doc.issueDate), 'PPP') : '-'}</td>
-              <td className="px-3 py-2 text-xs text-center">{row.doc.expiryDate ? format(new Date(row.doc.expiryDate), 'PPP') : '-'}</td>
+              <td className="px-3 py-2 text-xs text-center">{row.doc.issueDate ? format(new Date(row.doc.issueDate), 'dd/MM/yyyy') : '-'}</td>
+              <td className="px-3 py-2 text-xs text-center">{row.doc.expiryDate ? format(new Date(row.doc.expiryDate), 'dd/MM/yyyy') : '-'}</td>
               <td className="px-3 py-2 text-xs text-center">
                 {row.doc.isVerified ? (
                   <Badge variant="success"><Check className="h-4 w-4 mr-1 inline" />Verified</Badge>

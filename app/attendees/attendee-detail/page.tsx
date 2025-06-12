@@ -1066,13 +1066,13 @@ function AttendeeDetailContent() {
                               {doc.issueDate && (
                                 <div>
                                   <h4 className="text-sm font-medium text-muted-foreground">Issue Date</h4>
-                                  <p>{format(new Date(doc.issueDate), 'PPP')}</p>
+                                  <p>{format(new Date(doc.issueDate), 'dd/MM/yyyy')}</p>
                                 </div>
                               )}
                               {doc.expiryDate && (
                                 <div>
                                   <h4 className="text-sm font-medium text-muted-foreground">Expiry Date</h4>
-                                  <p>{format(new Date(doc.expiryDate), 'PPP')}</p>
+                                  <p>{format(new Date(doc.expiryDate), 'dd/MM/yyyy')}</p>
                                 </div>
                               )}
                               <div>
