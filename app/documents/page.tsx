@@ -8,7 +8,7 @@ import { Attendee } from "@/types/attendee";
 import { Document, FileItem } from "@/types/document";
 import { getPaginatedAttendees } from '@/services/attendeeService';
 import { getAttendeeDocuments, deleteDocument } from "@/services/documentService";
-import { getDocumentFiles } from "@/services/fileService";
+import { getDocumentFiles, extractFileIdOrName } from "@/services/fileService";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Loader2, Eye, Edit, Trash2, Check, Search } from "lucide-react";
@@ -31,6 +31,32 @@ import { toast } from "sonner";
 import { getCourseTemplates } from "@/services/courseTemplateService";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+// Utility to normalize file metadata for UI
+function normalizeFileItem(file: any, idx: number) {
+  const id = extractFileIdOrName(file) || file.id || file.fileId || `file-${idx + 1}`;
+  const name = file.name || file.fileName || `File ${idx + 1}`;
+  const contentType =
+    file.contentType ||
+    (file.headers && (file.headers['Content-Type']?.[0] || file.headers['content-type']?.[0])) ||
+    'application/octet-stream';
+  const size =
+    file.size ||
+    file.contentLength ||
+    (file.headers && parseInt(file.headers['Content-Length']?.[0] || file.headers['content-length']?.[0] || '0', 10)) ||
+    (file.body && typeof file.body === 'string' ? file.body.length : 0) ||
+    0;
+  const debugInfo = { id, name, contentType, size, original: file };
+  console.log('[normalizeFileItem] Normalized file:', debugInfo);
+  return {
+    ...file,
+    id,
+    name,
+    contentType,
+    size,
+    _debugInfo: debugInfo,
+  };
+}
 
 export default function DocumentsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -101,31 +127,23 @@ export default function DocumentsPage() {
         const attendeeBatch = allAttendees.slice(i, i + batchSize);
         const batchPromises = attendeeBatch.map(async (attendee) => {
           try {
-            // Get documents for this attendee
+            // Get documents with their files for this attendee
             const documents = await getAttendeeDocuments({ 
               trainingCenterId: attendee.trainingCenterId, 
-              attendeeId: attendee.id
+              attendeeId: attendee.id,
+              includeFiles: true // This will now return documents with their files
             });
             
-            // For each document, prepare to fetch files
-            const documentPromises = documents.map(async (doc) => {
-              try {
-                // Fetch files for this document
-                const files = await getDocumentFiles({
-                  trainingCenterId: attendee.trainingCenterId,
-                  attendeeId: attendee.id,
-                  documentId: doc.id
-                });
-                
-                return { attendee, doc, files };
-              } catch (fileErr) {
-                console.error(`Error fetching files for document ${doc.id}:`, fileErr);
-                return { attendee, doc, files: [] };
-              }
+            // Map documents to rows with their files, normalizing each file
+            return documents.map(doc => {
+              const files = (doc.documentFiles || []).map((file, idx) => normalizeFileItem(file, idx));
+              console.log('[fetchAllDocuments] Document:', doc.name, 'Files:', files);
+              return {
+                attendee,
+                doc,
+                files,
+              };
             });
-            
-            // Wait for all document file fetches to complete
-            return await Promise.all(documentPromises);
           } catch (docErr) {
             console.error(`Error fetching documents for attendee ${attendee.id}:`, docErr);
             return [];
