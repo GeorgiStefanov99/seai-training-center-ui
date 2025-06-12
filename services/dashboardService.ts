@@ -1,6 +1,6 @@
 import axios from "axios";
 import { getAuthToken } from "@/services/waitlistService";
-import { getAttendees } from "@/services/attendeeService";
+import { getAttendees, getPaginatedAttendees } from "@/services/attendeeService";
 import { getWaitlistRecords } from "@/services/waitlistService";
 import { getCourseTemplates } from "@/services/courseTemplateService";
 import { WaitlistRecord, ActiveCourse } from "@/types/course-template";
@@ -72,11 +72,12 @@ export async function getDashboardData({
 
     // Fetch data from multiple endpoints in parallel
     let attendees: Attendee[] = [], waitlistRecords: WaitlistRecord[] = [], courseTemplates: CourseTemplate[] = [];
+    let totalAttendees = 0;
     try {
       const results = await Promise.all([
-        getAttendees(trainingCenterId).catch(err => {
-          console.error('Error fetching attendees:', err);
-          return [];
+        getPaginatedAttendees(trainingCenterId, { page: 1, size: 1, sortBy: 'name' }).catch(err => {
+          console.error('Error fetching paginated attendees:', err);
+          return { attendees: [], totalElements: 0 };
         }),
         getWaitlistRecords({ trainingCenterId, timestamp: Date.now() }).catch(err => {
           console.error('Error fetching waitlist records:', err);
@@ -87,14 +88,15 @@ export async function getDashboardData({
           return [];
         })
       ]);
-      
-      // Ensure each result is an array
-      attendees = Array.isArray(results[0]) ? results[0] : [];
+      // Use paginated attendees for count
+      const paginatedAttendees = results[0];
+      totalAttendees = paginatedAttendees.totalElements || 0;
+      attendees = paginatedAttendees.attendees || [];
       waitlistRecords = Array.isArray(results[1]) ? results[1] : [];
       courseTemplates = Array.isArray(results[2]) ? results[2] : [];
-      
-      console.log('Dashboard data fetched:', {
+      console.log('Dashboard data fetched (paginated):', {
         attendeesCount: attendees.length,
+        totalAttendees,
         waitlistCount: waitlistRecords.length,
         templatesCount: courseTemplates.length
       });
@@ -104,23 +106,20 @@ export async function getDashboardData({
     }
 
     // Get active courses from course templates
-    // In a real implementation, this would be fetched from a dedicated endpoint
-    const activeCourses: ActiveCourse[] = Array.isArray(courseTemplates) ? courseTemplates
+    const activeCourses = Array.isArray(courseTemplates) ? courseTemplates
       .filter(template => template && typeof template === 'object' && template.id && template.name)
       .map(template => ({
         id: `active-${template.id}`,
         templateId: template.id,
         name: template.name,
-        startDate: new Date().toISOString(), // Mock data
-        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Mock data
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         status: "SCHEDULED" as const,
-        maxSeats: template.maxSeats || 20, // Default if missing
-        availableSeats: Math.floor((template.maxSeats || 20) * 0.3), // Mock data
-        enrolledAttendees: Math.floor((template.maxSeats || 20) * 0.7) // Mock data
+        maxSeats: template.maxSeats || 20,
+        availableSeats: Math.floor((template.maxSeats || 20) * 0.3),
+        enrolledAttendees: Math.floor((template.maxSeats || 20) * 0.7)
       })) : [];
 
-    // Calculate metrics
-    const totalAttendees = attendees.length;
     const totalCourses = courseTemplates.length;
     const activeCoursesCount = activeCourses.length;
     const upcomingCoursesCount = activeCourses.filter((course: ActiveCourse) => 
@@ -134,7 +133,6 @@ export async function getDashboardData({
     const cancelledCount = waitlistRecords.filter((record: WaitlistRecord) => 
       record.status === "CANCELLED").length;
     
-    // Calculate capacity utilization
     let capacityUtilization = 0;
     if (activeCourses.length > 0) {
       const totalSeats = activeCourses.reduce((sum: number, course: ActiveCourse) => sum + course.maxSeats, 0);
@@ -142,9 +140,7 @@ export async function getDashboardData({
       capacityUtilization = Math.round((filledSeats / totalSeats) * 100) || 0;
     }
 
-    // Get rank distribution
     const rankCounts: Record<string, number> = {};
-    // Ensure attendees is an array before using forEach
     if (Array.isArray(attendees)) {
       attendees.forEach((attendee: Attendee) => {
         const rank = attendee.rank || 'OTHER';
@@ -159,7 +155,6 @@ export async function getDashboardData({
       count
     }));
 
-    // Get recent waitlist records (sorted by most recent)
     const recentWaitlist = Array.isArray(waitlistRecords) ? [...waitlistRecords]
       .filter(record => record && typeof record === 'object')
       .sort((a: WaitlistRecord, b: WaitlistRecord) => {
@@ -169,7 +164,6 @@ export async function getDashboardData({
       })
       .slice(0, 5) : [];
 
-    // Get upcoming courses (sorted by start date)
     const upcomingCourses = Array.isArray(activeCourses) ? [...activeCourses]
       .filter((course: ActiveCourse) => course && course.startDate && new Date(course.startDate) > new Date())
       .sort((a: ActiveCourse, b: ActiveCourse) => {
@@ -179,7 +173,6 @@ export async function getDashboardData({
       })
       .slice(0, 5) : [];
 
-    // Create recent enrollments from waitlist records with ENROLLED status
     const recentEnrollments = Array.isArray(waitlistRecords) ? waitlistRecords
       .filter((record: WaitlistRecord) => 
         record && 
@@ -224,12 +217,7 @@ export async function getDashboardData({
       rankDistribution
     };
   } catch (error) {
-    console.error("Error fetching dashboard data:", error);
-    // Fallback to mock data in development mode
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Falling back to mock dashboard data due to error');
-      return getMockDashboardData();
-    }
+    console.error('Error in getDashboardData:', error);
     throw error;
   }
 }
