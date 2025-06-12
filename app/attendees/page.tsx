@@ -69,7 +69,7 @@ export default function AttendeesPage() {
   
   // Pagination state (client-side)
   const [currentPage, setCurrentPage] = useState(1)
-  const ITEMS_PER_PAGE = 20
+  const ITEMS_PER_PAGE = 50
   const [totalElements, setTotalElements] = useState<number>(0)
   
   // We'll use client-side filtering for the search query
@@ -373,7 +373,7 @@ export default function AttendeesPage() {
     {
       key: "index",
       header: <div className="text-center w-full">#</div>,
-      cell: (_, index) => index + 1,
+      cell: (_, index) => (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
       cellClassName: "text-center"
     },
     {
@@ -626,9 +626,11 @@ export default function AttendeesPage() {
               className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 0 ? '' : 'bg-muted/30'}`}
               onClick={() => navigateToAttendeeDetail(row)}
             >
-              {columns.map((column) => (
+              {columns.map((column, colIdx) => (
                 <td key={column.key} className={`px-2 py-1 text-xs ${column.cellClassName || ""}`}>
-                  {column.key === 'actions' ? (
+                  {column.key === 'index' ? (
+                    (currentPage - 1) * ITEMS_PER_PAGE + index + 1
+                  ) : column.key === 'actions' ? (
                     // For the actions column, we want to prevent the row click event
                     <div onClick={(e) => e.stopPropagation()}>
                       {column.cell ? column.cell(row, index) : null}

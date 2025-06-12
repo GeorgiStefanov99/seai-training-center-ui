@@ -68,7 +68,7 @@ export default function DocumentsPage() {
   const initialFetchDone = useRef(false);
   
   // Pagination state
-  const ITEMS_PER_PAGE = 20;
+  const ITEMS_PER_PAGE = 50;
   const [currentPage, setCurrentPage] = useState(1);
   
   // State for filters and pagination
@@ -363,7 +363,7 @@ export default function DocumentsPage() {
       key: "index",
       header: <div className="flex items-center justify-center w-full">#</div>,
       cell: (_: any, index: number) => (
-        <div className="flex items-center justify-center w-full">{index + 1}</div>
+        <div className="flex items-center justify-center w-full">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</div>
       ),
       cellClassName: "text-center align-middle px-3 py-2"
     },
@@ -532,7 +532,7 @@ export default function DocumentsPage() {
               key={row.doc.id || index} 
               className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 1 ? 'bg-muted/30' : ''}`}
             >
-              <td className="px-3 py-2 text-xs text-center">{index + 1}</td>
+              <td className="px-3 py-2 text-xs text-center">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
               <td className="px-3 py-2 text-xs text-center">
                 <a
                   href={`/attendees/attendee-detail?id=${row.attendee.id}`}
@@ -596,7 +596,11 @@ export default function DocumentsPage() {
         {filteredRows.length > 0 && (
           <div className="flex items-center justify-between mt-4">
             <div className="text-sm text-muted-foreground">
-              Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredRows.length)} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredRows.length)} of {filteredRows.length} records
+              {(() => {
+                const start = filteredRows.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+                const end = Math.min(currentPage * ITEMS_PER_PAGE, filteredRows.length);
+                return `Showing ${start} - ${end} of ${filteredRows.length} records`;
+              })()}
             </div>
             <div className="flex items-center space-x-6">
               <Button
@@ -608,11 +612,9 @@ export default function DocumentsPage() {
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Previous
               </Button>
-              
               <div className="text-sm font-medium">
                 Page {currentPage} of {totalPages}
               </div>
-              
               <Button
                 variant="outline"
                 size="sm"
