@@ -35,7 +35,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { Attendee, AttendeeRank } from "@/types/attendee"
 import { CourseTemplate } from "@/types/course-template"
 import { createWaitlistRecordForAttendee } from "@/services/waitlistService"
-import { getAttendees, createAttendee } from "@/services/attendeeService"
+import { getPaginatedAttendees, createAttendee } from "@/services/attendeeService"
 import { getCourseTemplates } from "@/services/courseTemplateService"
 import { Loader2, Plus, UserPlus, Users } from "lucide-react"
 import { AttendeeForm } from "@/components/forms/attendee-form"
@@ -103,9 +103,9 @@ export function WaitlistAddDialog({
     if (open && trainingCenterId) {
       setIsLoading(true);
       
-      getAttendees(trainingCenterId)
+      getPaginatedAttendees(trainingCenterId)
         .then(attendeesData => {
-          setAttendees(attendeesData);
+          setAttendees(attendeesData.attendees);
         })
         .catch(err => {
           console.error("Error fetching attendees:", err);

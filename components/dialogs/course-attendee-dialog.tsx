@@ -34,7 +34,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/hooks/useAuth"
 import { Attendee, AttendeeRank } from "@/types/attendee"
 import { WaitlistRecord, WaitlistAttendeeResponse } from "@/types/course-template"
-import { getAttendees, createAttendee } from "@/services/attendeeService"
+import { getPaginatedAttendees, createAttendee } from "@/services/attendeeService"
 import { assignAttendeeToCourse } from "@/services/courseAttendeeService"
 import { getWaitlistRecordsByTemplate, deleteWaitlistRecord } from "@/services/waitlistService"
 import { Loader2, Search, UserPlus, Users } from "lucide-react"
@@ -98,9 +98,9 @@ export function CourseAttendeeDialog({
       
       const fetchAttendees = async () => {
         try {
-          const data = await getAttendees(trainingCenterId);
-          setAttendees(data);
-          setFilteredAttendees(data);
+          const data = await getPaginatedAttendees(trainingCenterId);
+          setAttendees(data.attendees);
+          setFilteredAttendees(data.attendees);
         } catch (error) {
           console.error("Error fetching attendees:", error);
           toast.error("Failed to load attendees. Please try again.");
