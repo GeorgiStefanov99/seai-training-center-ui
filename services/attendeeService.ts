@@ -52,30 +52,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.seai.c
 // API version path
 const API_VERSION_PATH = '/api/v1';
 
-/**
- * Fetch all attendees for a training center (legacy non-paginated version)
- * @param trainingCenterId The ID of the training center
- * @returns Promise with the list of attendees
- * @deprecated Use getPaginatedAttendees instead
- */
-export const getAttendees = async (trainingCenterId: string): Promise<Attendee[]> => {
-  try {
-    const token = getAuthToken();
-    console.log('DEBUG: Auth token for API request:', token ? 'Token found' : 'No token');
-    
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    console.log('DEBUG: Request headers:', headers);
-    
-    const response = await axios.get<GetAttendeesResponse>(
-      `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/attendees`,
-      { headers }
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching attendees:', error);
-    throw error;
-  }
-};
+
 
 /**
  * Fetch paginated attendees for a training center with all related data

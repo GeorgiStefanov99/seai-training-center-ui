@@ -1,6 +1,6 @@
 import axios from "axios";
 import { getAuthToken } from "@/services/waitlistService";
-import { getAttendees, getPaginatedAttendees } from "@/services/attendeeService";
+import { getPaginatedAttendees } from "@/services/attendeeService";
 import { getWaitlistRecords } from "@/services/waitlistService";
 import { getCourseTemplates } from "@/services/courseTemplateService";
 import { WaitlistRecord, ActiveCourse } from "@/types/course-template";
