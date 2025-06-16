@@ -37,8 +37,9 @@ import { CourseTemplate } from "@/types/course-template"
 import { createWaitlistRecordForAttendee } from "@/services/waitlistService"
 import { getPaginatedAttendees, createAttendee } from "@/services/attendeeService"
 import { getCourseTemplates } from "@/services/courseTemplateService"
-import { Loader2, Plus, UserPlus, Users } from "lucide-react"
+import { Loader2, Plus, UserPlus, Users, Search } from "lucide-react"
 import { AttendeeForm } from "@/components/forms/attendee-form"
+import { MultiCombobox } from "@/components/ui/multi-combobox"
 
 // Define the form schema with validation for when courseTemplateId is provided
 const baseFormSchema = {
@@ -292,30 +293,22 @@ export function WaitlistAddDialog({
                       <FormItem>
                         <FormLabel>Attendees</FormLabel>
                         <div className="relative">
-                          <Select 
-                            onValueChange={(value) => {
+                          <MultiCombobox
+                            options={attendees
+                              .filter(attendee => !field.value.includes(attendee.id))
+                              .map((attendee) => ({
+                                value: attendee.id,
+                                label: `${attendee.name} ${attendee.surname} (${formatRank(attendee.rank)})`
+                              }))}
+                            placeholder="Search attendees..."
+                            disabled={isSubmitting}
+                            onSelect={(value) => {
                               // Add the selected value to the array if it's not already there
                               if (!field.value.includes(value)) {
                                 field.onChange([...field.value, value]);
                               }
                             }}
-                            disabled={isSubmitting}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select attendees" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {attendees
-                                .filter(attendee => !field.value.includes(attendee.id))
-                                .map((attendee) => (
-                                <SelectItem key={attendee.id} value={attendee.id}>
-                                  {attendee.name} {attendee.surname} ({formatRank(attendee.rank)})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          />
                         </div>
                         
                         {/* Display selected attendees with remove option */}
