@@ -173,12 +173,22 @@ export default function FinancialDashboard() {
       <div className="flex flex-col md:flex-row items-start md:items-end gap-4 mb-6">
         <div className="flex flex-col space-y-1.5 w-full md:w-[300px]">
           <Label htmlFor="date-range">Time Period:</Label>
-          <DateRangePicker
-            value={dateRange}
-            onChange={(range: DateRange | undefined) => range && setDateRange(range)}
-            className="w-full"
-            placeholder="Select date range"
-          />
+          <div className="flex gap-2">
+            <DateRangePicker
+              value={dateRange}
+              onChange={(range: DateRange | undefined) => range && setDateRange(range)}
+              className="w-full"
+              placeholder="Select date range"
+            />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setDateRange({ from: undefined, to: undefined })}
+              className="whitespace-nowrap mt-0.5"
+            >
+              Show All
+            </Button>
+          </div>
         </div>
         
         <div className="flex flex-col space-y-1.5 w-full md:w-[300px]">
@@ -284,7 +294,7 @@ export default function FinancialDashboard() {
         <Card className="col-span-1 lg:col-span-1">
           <CardHeader>
             <CardTitle>Course Type Distribution</CardTitle>
-            <CardDescription>Revenue by course type</CardDescription>
+            <CardDescription>Number of courses by type with percentage</CardDescription>
           </CardHeader>
           <CardContent className="h-80">
             <ResponsiveContainer width="100%" height="100%">
@@ -293,18 +303,23 @@ export default function FinancialDashboard() {
                   data={dashboardData?.courseTypeRevenue || []}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  labelLine={true}
+                  label={({ value, payload }) => `${value} (${payload.percentage}%)`}
                   outerRadius={80}
                   fill="#8884d8"
-                  dataKey="revenue"
+                  dataKey="count"
                   nameKey="type"
                 >
                   {dashboardData?.courseTypeRevenue?.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                <Tooltip 
+                  formatter={(value, name, props) => {
+                    const entry = props.payload;
+                    return [`${value} courses (${entry.percentage}% of total)`, name];
+                  }} 
+                />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>

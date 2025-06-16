@@ -52,6 +52,7 @@ export interface CourseTypeRevenueData {
   type: string;
   revenue: number;
   count: number;
+  percentage: number; // Percentage of total courses
   avgAttendees: number;
   avgPrice: number;
 }
@@ -137,6 +138,8 @@ export async function getFinancialDashboardData({
  * Transform archived courses data to financial dashboard data format
  */
 async function transformCoursesToFinancialData(courses: Course[], trainingCenterId: string): Promise<FinancialDashboardData> {
+  // Debug: Log the courses to see their structure
+  console.log('Courses data:', courses.map(course => ({ id: course.id, name: course.name, description: course.description })));
   const currentDate = new Date();
   
   // If no courses are found, return empty data structure
@@ -180,11 +183,10 @@ async function transformCoursesToFinancialData(courses: Course[], trainingCenter
     }
   }));
   
-  // Extract course types from courses (using description as type since Course doesn't have a type field)
+  // Extract course types from courses using the course name
   const courseTypes = Array.from(new Set(courses.map(course => {
-    // Use description as a fallback for course type
-    // Extract the first word or use 'Unknown' if description is empty
-    return course.description ? course.description.split(' ')[0] : 'Unknown';
+    // Use the course name or 'Unknown' if name is empty
+    return course.name || 'Unknown';
   })));
   
   // Initialize data structures for aggregating financial data
@@ -255,7 +257,8 @@ async function transformCoursesToFinancialData(courses: Course[], trainingCenter
     const courseEndDate = new Date(course.endDate);
     const courseMonth = format(courseStartDate, 'MMM yyyy');
     const courseYear = format(courseStartDate, 'yyyy');
-    const courseType = course.description ? course.description.split(' ')[0] : 'Unknown';
+    // Use the course name as the course type
+    const courseType = course.name || 'Unknown';
     const coursePrice = course.price || 0;
     const attendeeCount = attendees.length;
     const courseRevenue = coursePrice * attendeeCount;
@@ -362,11 +365,15 @@ async function transformCoursesToFinancialData(courses: Course[], trainingCenter
     }))
     .sort((a, b) => a.year.localeCompare(b.year));
   
+  // Calculate total number of courses for percentage calculation
+  const totalCourseCount = Array.from(courseTypeData.values()).reduce((sum, data) => sum + data.count, 0);
+  
   const courseTypeRevenue: CourseTypeRevenueData[] = Array.from(courseTypeData.entries())
     .map(([type, data]) => ({
       type,
       revenue: data.revenue,
       count: data.count,
+      percentage: totalCourseCount > 0 ? Math.round((data.count / totalCourseCount) * 100) : 0,
       avgAttendees: data.count > 0 ? Math.round((data.attendees / data.count) * 10) / 10 : 0,
       avgPrice: data.count > 0 ? Math.round((data.totalPrice / data.count) * 100) / 100 : 0
     }))
