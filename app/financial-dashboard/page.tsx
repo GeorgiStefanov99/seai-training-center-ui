@@ -303,8 +303,8 @@ export default function FinancialDashboard() {
                   data={dashboardData?.courseTypeRevenue || []}
                   cx="50%"
                   cy="50%"
-                  labelLine={true}
-                  label={({ value, payload }) => `${value} (${payload.percentage}%)`}
+                  labelLine={false}
+                  label={({ name, value, percent, payload }) => `${name}: ${value} (${payload.percentage}%)`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="count"

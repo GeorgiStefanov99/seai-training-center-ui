@@ -232,8 +232,8 @@ async function transformCoursesToFinancialData(courses: Course[], trainingCenter
     const expenses = Math.floor(totalRevenue * 0.4);
     const profit = totalRevenue - expenses;
     
-    // Use description as a fallback for course type
-    const courseType = course.description ? course.description.split(' ')[0] : 'Unknown';
+    // Use the course name as the course type
+    const courseType = course.name || 'Unknown';
     
     return {
       id: course.id,

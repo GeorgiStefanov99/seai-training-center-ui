@@ -59,59 +59,55 @@ export function MultiSelect({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn("w-full justify-between", className)}
-        >
-          <div className="flex flex-wrap gap-1 items-center">
-            {selected.length === 0 && <span className="text-muted-foreground">{placeholder}</span>}
-            {selected.length > 0 && (
-              <>
-                <div className="flex flex-wrap gap-1">
-                  {selected.map(value => {
-                    const option = options.find(opt => opt.value === value)
-                    return (
-                      <Badge 
-                        key={value} 
-                        variant="secondary"
-                        className="mr-1 px-1 font-normal"
-                      >
-                        {option?.label || value}
-                        <button
-                          className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                          onMouseDown={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleRemove(value)
-                          }}
-                        >
-                          <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                        </button>
-                      </Badge>
-                    )
-                  })}
-                </div>
-                {selected.length > 0 && (
-                  <button
-                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handleClear()
-                    }}
-                  >
-                    <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+    <div className="space-y-2">
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1 min-h-[28px]">
+          {selected.map(value => {
+            const option = options.find(opt => opt.value === value)
+            return (
+              <Badge 
+                key={value} 
+                variant="secondary"
+                className="px-1 font-normal text-xs"
+              >
+                {option?.label || value}
+                <button
+                  className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleRemove(value)
+                  }}
+                >
+                  <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                </button>
+              </Badge>
+            )
+          })}
+          {selected.length > 0 && (
+            <Badge 
+              variant="outline" 
+              className="px-1 font-normal text-xs cursor-pointer"
+              onClick={handleClear}
+            >
+              Clear all
+            </Badge>
+          )}
+        </div>
+      )}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className={cn("w-full justify-between", className)}
+          >
+            <span className="text-muted-foreground">
+              {selected.length > 0 ? `${selected.length} selected` : placeholder}
+            </span>
+            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+          </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0">
         <Command>
@@ -136,6 +132,7 @@ export function MultiSelect({
           </CommandGroup>
         </Command>
       </PopoverContent>
-    </Popover>
+      </Popover>
+    </div>
   )
 }
