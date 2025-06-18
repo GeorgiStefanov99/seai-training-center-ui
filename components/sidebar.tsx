@@ -14,7 +14,9 @@ import {
   Video,
   Archive,
   FileText,
-  DollarSign
+  DollarSign,
+  Scan
+  
 } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -24,6 +26,7 @@ import { useAuth } from "@/hooks/useAuth"
 
 const getMenuItems = (userType: string) => {
   const commonItems = [
+    { name: "Smart Scanner", icon: Scan, href: "/smart-scanner" },
     { name: "Dashboard", icon: BarChart2, href: "/dashboard" },
     { name: "Financial Dashboard", icon: DollarSign, href: "/financial-dashboard" },
     { name: "Attendees", icon: User, href: "/attendees" },
