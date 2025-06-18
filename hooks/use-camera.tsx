@@ -16,6 +16,12 @@ export function useCamera() {
   const startCamera = useCallback(async (): Promise<boolean> => {
     try {
       setIsCapturing(true)
+      
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera not supported on this device')
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment', // Use back camera on mobile devices
@@ -32,8 +38,24 @@ export function useCamera() {
       return true
     } catch (error) {
       console.error('Error accessing camera:', error)
-      setIsCapturing(false)
-      return false
+      
+      // Try with less restrictive constraints if the first attempt fails
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true
+        })
+        
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          await videoRef.current.play()
+        }
+        return true
+      } catch (fallbackError) {
+        console.error('Fallback camera access failed:', fallbackError)
+        setIsCapturing(false)
+        return false
+      }
     }
   }, [])
 

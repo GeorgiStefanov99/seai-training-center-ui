@@ -179,22 +179,22 @@ export function SmartScannerAddDocumentDialog({
       }
       onOpenChange(isOpen)
     }}>
-      <DialogContent className="sm:max-w-[1200px] h-[90vh]">
-        <DialogHeader>
-          <DialogTitle>Add New Document</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="w-[95vw] sm:max-w-[1200px] h-[95vh] sm:h-[90vh] p-3 sm:p-6">
+        <DialogHeader className="pb-3 sm:pb-6">
+          <DialogTitle className="text-lg sm:text-xl">Add New Document</DialogTitle>
+          <DialogDescription className="text-sm">
             Enter the document details below. All fields are required.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6 h-full">
-          <div className="grid grid-cols-2 gap-6 h-[calc(90vh-200px)]">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 h-full flex flex-col">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 flex-1 min-h-0">
             {/* Left Column - Document Preview */}
-            <div className="space-y-4 h-full flex flex-col">
-              <Label>Document Preview</Label>
-              <div className="flex-1 relative border rounded-lg overflow-hidden bg-gray-50">
+            <div className="space-y-3 sm:space-y-4 h-full flex flex-col order-2 lg:order-1">
+              <Label className="text-base sm:text-sm">Document Preview</Label>
+              <div className="flex-1 relative border rounded-lg overflow-hidden bg-gray-50 min-h-[200px] lg:min-h-0">
                 {filePreviewItems[0] && (
                   <div className="w-full h-full flex flex-col">
-                    <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+                    <div className="flex-1 flex items-center justify-center p-2 sm:p-4 overflow-auto">
                       {filePreviewItems[0].type.startsWith('image/') ? (
                         <img
                           src={filePreviewItems[0].url}
@@ -209,42 +209,51 @@ export function SmartScannerAddDocumentDialog({
                       ) : filePreviewItems[0].type === 'application/pdf' ? (
                         <iframe
                           src={filePreviewItems[0].url}
-                          className="w-full h-full"
+                          className="w-full h-full rounded"
                           style={{ border: 'none' }}
                           title={filePreviewItems[0].name}
                         />
                       ) : (
                         <div className="flex items-center justify-center h-full">
-                          <p className="text-muted-foreground">
+                          <p className="text-muted-foreground text-center px-4">
                             Preview not available for this file type
                           </p>
                         </div>
                       )}
                     </div>
                     {filePreviewItems[0].type.startsWith('image/') && (
-                      <div className="flex items-center justify-center gap-2 p-4 border-t bg-white">
+                      <div className="flex items-center justify-center gap-2 p-2 sm:p-4 border-t bg-white">
                         <Button
+                          type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => setZoomLevel(prev => Math.max(prev - 0.25, 0.5))}
                           disabled={zoomLevel <= 0.5}
+                          className="h-8 w-8 sm:h-auto sm:w-auto sm:px-3 touch-manipulation"
                         >
                           <ZoomOut className="h-4 w-4" />
+                          <span className="sr-only sm:not-sr-only sm:ml-1">Out</span>
                         </Button>
                         <Button
+                          type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => setZoomLevel(1)}
+                          className="h-8 w-8 sm:h-auto sm:w-auto sm:px-3 touch-manipulation"
                         >
                           <RotateCcw className="h-4 w-4" />
+                          <span className="sr-only sm:not-sr-only sm:ml-1">Reset</span>
                         </Button>
                         <Button
+                          type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => setZoomLevel(prev => Math.min(prev + 0.25, 3))}
                           disabled={zoomLevel >= 3}
+                          className="h-8 w-8 sm:h-auto sm:w-auto sm:px-3 touch-manipulation"
                         >
                           <ZoomIn className="h-4 w-4" />
+                          <span className="sr-only sm:not-sr-only sm:ml-1">In</span>
                         </Button>
                       </div>
                     )}
@@ -254,41 +263,44 @@ export function SmartScannerAddDocumentDialog({
             </div>
 
             {/* Right Column - Document Details Form */}
-            <div className="space-y-4 overflow-y-auto">
+            <div className="space-y-3 sm:space-y-4 overflow-y-auto order-1 lg:order-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Document Name *</Label>
+                <Label htmlFor="name" className="text-base sm:text-sm font-medium">Document Name *</Label>
                 <Input
                   id="name"
                   name="name"
                   placeholder="Enter document name"
                   defaultValue={initialData?.name || ''}
                   required
+                  className="h-12 sm:h-10 text-base sm:text-sm"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="number">Document Number</Label>
+                <Label htmlFor="number" className="text-base sm:text-sm font-medium">Document Number</Label>
                 <Input
                   id="number"
                   name="number"
                   placeholder="Enter document number"
                   defaultValue={initialData?.number || ''}
+                  className="h-12 sm:h-10 text-base sm:text-sm"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="issueDate">Issue Date</Label>
+                <Label htmlFor="issueDate" className="text-base sm:text-sm font-medium">Issue Date</Label>
                 <Input
                   id="issueDate"
                   name="issueDate"
                   type="date"
                   value={issueDate}
                   onChange={(e) => setIssueDate(e.target.value)}
+                  className="h-12 sm:h-10 text-base sm:text-sm"
                 />
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-3">
                   <Checkbox
                     id="noExpiryDate"
                     checked={noExpiryDate}
@@ -298,31 +310,33 @@ export function SmartScannerAddDocumentDialog({
                         setExpiryDate('')
                       }
                     }}
+                    className="h-5 w-5"
                   />
-                  <Label htmlFor="noExpiryDate">No expiry date</Label>
+                  <Label htmlFor="noExpiryDate" className="text-base sm:text-sm font-medium">No expiry date</Label>
                 </div>
               </div>
 
               {!noExpiryDate && (
                 <div className="space-y-2">
-                  <Label htmlFor="expiryDate">Expiry Date</Label>
+                  <Label htmlFor="expiryDate" className="text-base sm:text-sm font-medium">Expiry Date</Label>
                   <Input
                     id="expiryDate"
                     name="expiryDate"
                     type="date"
                     value={expiryDate}
                     onChange={(e) => setExpiryDate(e.target.value)}
+                    className="h-12 sm:h-10 text-base sm:text-sm"
                   />
                 </div>
               )}
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-3">
                 <Switch
                   id="verified"
                   checked={isVerified}
                   onCheckedChange={setIsVerified}
                 />
-                <Label htmlFor="verified">Verified</Label>
+                <Label htmlFor="verified" className="text-base sm:text-sm font-medium">Verified</Label>
               </div>
 
               {!hideSailorSelection && (
@@ -345,11 +359,21 @@ export function SmartScannerAddDocumentDialog({
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
+          <DialogFooter className="flex-col sm:flex-row gap-3 sm:gap-2 pt-4 sm:pt-6">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleCancel} 
+              disabled={isSubmitting}
+              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm font-medium touch-manipulation order-2 sm:order-1"
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm font-medium touch-manipulation order-1 sm:order-2"
+            >
               {isSubmitting ? 'Saving...' : 'Save Document'}
             </Button>
           </DialogFooter>

@@ -48,8 +48,9 @@ export default function SmartScanner() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [previewFile, setPreviewFile] = useState<FilePreviewItem | null>(null)
   const [zoomLevel, setZoomLevel] = useState(1)
+  const [isCameraOpen, setIsCameraOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { takePhoto } = useCamera()
+  const { takePhoto, startCamera, stopCamera, isCapturing, videoRef, canvasRef } = useCamera()
   const router = useRouter()
   const { user } = useAuth()
 
@@ -267,6 +268,24 @@ export default function SmartScanner() {
       return
     }
 
+    setIsCameraOpen(true)
+  }
+
+  const handleStartCamera = async () => {
+    try {
+      const success = await startCamera()
+      if (!success) {
+        toast.error("Failed to access camera. Please check permissions.")
+        setIsCameraOpen(false)
+      }
+    } catch (error) {
+      console.error('Error starting camera:', error)
+      toast.error("Failed to access camera. Please check permissions.")
+      setIsCameraOpen(false)
+    }
+  }
+
+  const handleTakePhoto = async () => {
     try {
       const capturedImage = await takePhoto()
       if (capturedImage) {
@@ -276,12 +295,25 @@ export default function SmartScanner() {
         const file = new File([blob], 'camera-capture.jpg', {
           type: 'image/jpeg'
         })
+        
+        // Close camera and clean up
+        stopCamera()
+        setIsCameraOpen(false)
+        
+        // Process the captured image
         handleScan(file)
+      } else {
+        toast.error("Failed to capture photo")
       }
     } catch (error) {
       console.error('Error capturing photo:', error)
       toast.error('Failed to capture photo')
     }
+  }
+
+  const handleCameraClose = () => {
+    stopCamera()
+    setIsCameraOpen(false)
   }
 
   const handleDocumentSave = async (data: Partial<Document>) => {
@@ -522,18 +554,25 @@ export default function SmartScanner() {
     loadAttendees()
   }, [user?.userId])
 
+  // Auto-start camera when dialog opens
+  useEffect(() => {
+    if (isCameraOpen) {
+      handleStartCamera()
+    }
+  }, [isCameraOpen])
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-gray-900">Smart Document Scanner</h1>
-        <p className="text-gray-600">Scan and process attendee documents with OCR technology</p>
+    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-2xl">
+      <div className="text-center space-y-2 px-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Smart Document Scanner</h1>
+        <p className="text-sm sm:text-base text-gray-600">Scan and process attendee documents with OCR technology</p>
       </div>
 
-      <div className="flex flex-col items-center space-y-6">
-        <div className="w-full max-w-md">
+      <div className="flex flex-col space-y-4 sm:space-y-6">
+        <div className="w-full">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-center">Select Attendee</CardTitle>
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="text-center text-lg sm:text-xl">Select Attendee</CardTitle>
             </CardHeader>
             <CardContent>
               <Select 
@@ -543,13 +582,16 @@ export default function SmartScanner() {
                 }}
                 disabled={isLoading}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-12 text-base">
                   <SelectValue placeholder={isLoading ? "Loading attendees..." : "Choose an attendee"} />
                 </SelectTrigger>
                 <SelectContent>
                   {attendees.map((attendee) => (
-                    <SelectItem key={attendee.id} value={attendee.id}>
-                      {attendee.name} {attendee.surname} - {attendee.rank}
+                    <SelectItem key={attendee.id} value={attendee.id} className="text-base py-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                        <span className="font-medium">{attendee.name} {attendee.surname}</span>
+                        <span className="text-sm text-gray-500">• {attendee.rank}</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -558,16 +600,14 @@ export default function SmartScanner() {
           </Card>
         </div>
 
-        <div className="w-full max-w-md">
+        <div className="w-full">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-center">Upload Document</CardTitle>
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="text-center text-lg sm:text-xl">Upload Document</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 sm:space-y-6">
               <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="document" className="text-center text-gray-600">
-                </Label>
-                <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center justify-center">
                   {previewFile ? (
                     <div className="w-full">
                       <FileUploadPreview
@@ -583,11 +623,14 @@ export default function SmartScanner() {
                   ) : (
                     <Label
                       htmlFor="document"
-                      className="flex h-32 w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 px-4 transition-colors hover:border-blue-500/50 hover:bg-blue-50/50"
+                      className="flex h-40 sm:h-32 w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 px-4 transition-colors hover:border-blue-500/50 hover:bg-blue-50/50 touch-manipulation"
                     >
-                      <div className="space-y-2 text-center">
-                        <Upload className="mx-auto h-8 w-8 text-gray-400" />
-                        <span className="text-sm text-gray-500">Click to upload</span>
+                      <div className="space-y-3 text-center">
+                        <Upload className="mx-auto h-10 w-10 sm:h-8 sm:w-8 text-gray-400" />
+                        <div className="space-y-1">
+                          <span className="text-base sm:text-sm text-gray-500 font-medium">Tap to upload</span>
+                          <div className="text-xs text-gray-400">or drag and drop</div>
+                        </div>
                       </div>
                     </Label>
                   )}
@@ -608,16 +651,16 @@ export default function SmartScanner() {
                   onClick={() => file && handleScan(file)}
                   disabled={!file || scanning || !selectedAttendee || isLoading}
                   size="lg"
-                  className="min-w-[200px] transition-all hover:scale-105"
+                  className="w-full h-12 sm:h-10 text-base sm:text-sm font-medium transition-all touch-manipulation"
                 >
                   {scanning ? (
                     <>
-                      <Scan className="mr-2 h-4 w-4 animate-spin" />
+                      <Scan className="mr-2 h-5 w-5 sm:h-4 sm:w-4 animate-spin" />
                       Scanning...
                     </>
                   ) : (
                     <>
-                      <Scan className="mr-2 h-4 w-4" />
+                      <Scan className="mr-2 h-5 w-5 sm:h-4 sm:w-4" />
                       Scan Document
                     </>
                   )}
@@ -627,30 +670,32 @@ export default function SmartScanner() {
                   disabled={scanning || !selectedAttendee || isLoading}
                   size="lg"
                   variant="outline"
-                  className="min-w-[200px] transition-all hover:scale-105"
+                  className="w-full h-12 sm:h-10 text-base sm:text-sm font-medium transition-all touch-manipulation"
                 >
-                  <Camera className="mr-2 h-4 w-4" />
+                  <Camera className="mr-2 h-5 w-5 sm:h-4 sm:w-4" />
                   Use Camera
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          <div className="text-center text-sm text-gray-500">Supported formats: JPEG, PNG, PDF</div>
+          <div className="text-center text-sm text-gray-500 mt-3 px-2">
+            Supported formats: JPEG, PNG, PDF
+          </div>
         </div>
       </div>
 
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="sm:max-w-[900px] h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>Document Preview</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="w-[95vw] sm:max-w-[900px] h-[90vh] sm:h-[80vh] p-3 sm:p-6">
+          <DialogHeader className="pb-3">
+            <DialogTitle className="text-lg sm:text-xl">Document Preview</DialogTitle>
+            <DialogDescription className="text-sm truncate">
               {previewFile?.name}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 flex flex-col">
-            <div className="flex-1 flex items-center justify-center overflow-auto">
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 flex items-center justify-center overflow-auto rounded-lg bg-gray-50">
               {previewFile && (
                 <>
                   {previewFile.type.startsWith('image/') ? (
@@ -667,13 +712,13 @@ export default function SmartScanner() {
                   ) : previewFile.type === 'application/pdf' ? (
                     <iframe
                       src={previewFile.url}
-                      className="w-full h-full"
+                      className="w-full h-full rounded"
                       style={{ border: 'none' }}
                       title={previewFile.name}
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full">
-                      <p className="text-muted-foreground">
+                      <p className="text-muted-foreground text-center px-4">
                         Preview not available for this file type
                       </p>
                     </div>
@@ -682,29 +727,102 @@ export default function SmartScanner() {
               )}
             </div>
             {previewFile?.type.startsWith('image/') && (
-              <div className="flex items-center justify-center gap-2 p-4 border-t">
+              <div className="flex items-center justify-center gap-2 p-3 sm:p-4 border-t mt-3">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setZoomLevel(prev => Math.max(prev - 0.25, 0.5))}
                   disabled={zoomLevel <= 0.5}
+                  className="h-10 w-10 sm:h-8 sm:w-auto sm:px-3 touch-manipulation"
                 >
                   <ZoomOut className="h-4 w-4" />
+                  <span className="sr-only sm:not-sr-only sm:ml-1">Zoom Out</span>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setZoomLevel(1)}
+                  className="h-10 w-10 sm:h-8 sm:w-auto sm:px-3 touch-manipulation"
                 >
                   <RotateCcw className="h-4 w-4" />
+                  <span className="sr-only sm:not-sr-only sm:ml-1">Reset</span>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setZoomLevel(prev => Math.min(prev + 0.25, 3))}
                   disabled={zoomLevel >= 3}
+                  className="h-10 w-10 sm:h-8 sm:w-auto sm:px-3 touch-manipulation"
                 >
                   <ZoomIn className="h-4 w-4" />
+                  <span className="sr-only sm:not-sr-only sm:ml-1">Zoom In</span>
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Camera Dialog */}
+      <Dialog open={isCameraOpen} onOpenChange={(open) => {
+        if (!open) {
+          handleCameraClose()
+        }
+      }}>
+        <DialogContent className="w-[95vw] sm:max-w-[600px] h-[90vh] sm:h-[70vh] p-3 sm:p-6">
+          <DialogHeader className="pb-3">
+            <DialogTitle className="text-lg sm:text-xl">Camera Capture</DialogTitle>
+            <DialogDescription className="text-sm">
+              Position the document in the camera view and tap capture
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 relative bg-black rounded-lg overflow-hidden">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+                style={{ transform: 'scaleX(-1)' }} // Mirror the video
+              />
+              <canvas
+                ref={canvasRef}
+                className="hidden"
+              />
+              
+              {!isCapturing && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                  <Button
+                    onClick={handleStartCamera}
+                    size="lg"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Camera className="mr-2 h-5 w-5" />
+                    Start Camera
+                  </Button>
+                </div>
+              )}
+            </div>
+            
+            {isCapturing && (
+              <div className="flex items-center justify-center gap-4 p-4">
+                <Button
+                  onClick={handleCameraClose}
+                  variant="outline"
+                  size="lg"
+                  className="flex-1 h-12 text-base font-medium"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleTakePhoto}
+                  size="lg"
+                  className="flex-1 h-12 text-base font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <Camera className="mr-2 h-5 w-5" />
+                  Capture
                 </Button>
               </div>
             )}

@@ -43,15 +43,19 @@ const getMenuItems = (userType: string) => {
   }
 
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileMenuOpen?: boolean
+  onMobileMenuToggle?: () => void
+}
+
+export function Sidebar({ mobileMenuOpen = false, onMobileMenuToggle }: SidebarProps) {
   const pathname = usePathname()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const { user, logout } = useAuth()
   const menuItems = getMenuItems("user")
 
   const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen)
+    onMobileMenuToggle?.()
   }
 
   const toggleSidebar = () => {
@@ -59,7 +63,6 @@ export function Sidebar() {
   }
 
   useEffect(() => {
-    setMobileMenuOpen(false)
     const handleResize = () => {
       if (window.innerWidth < 768) {
         setSidebarExpanded(false)
@@ -71,7 +74,8 @@ export function Sidebar() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="fixed top-0 left-0 h-full bg-primary text-primary-foreground shadow-lg flex flex-col transition-all duration-300 ease-in-out z-30">
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block fixed top-0 left-0 h-full bg-primary text-primary-foreground shadow-lg flex flex-col transition-all duration-300 ease-in-out z-30">
         <div className={`flex-1 overflow-y-auto pt-16 ${sidebarExpanded ? "w-44" : "w-14"}`}>
           <div className="flex flex-col space-y-1 mt-2 px-2">
             <Button
@@ -128,52 +132,68 @@ export function Sidebar() {
 
       {/* Mobile Menu */}
       <div
-        className={`fixed inset-0 z-50 bg-background/80 backdrop-blur-sm transition-all duration-100 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=open]:fade-in md:hidden ${
+        className={`fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm transition-all duration-200 md:hidden ${
           mobileMenuOpen ? "block" : "hidden"
         }`}
+        onClick={toggleMobileMenu}
       >
-        <div className="fixed inset-y-0 left-0 z-50 h-full w-2/3 overflow-y-auto bg-primary p-6 shadow-lg animate-in slide-in-from-left">
-          <div className="flex items-center justify-between">
+        <div 
+          className="fixed inset-y-0 left-0 z-[61] h-full w-64 sm:w-72 overflow-y-auto bg-primary p-4 shadow-2xl transform transition-transform duration-300 ease-out"
+          style={{
+            transform: mobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-6">
             <a href="/" className="flex items-center gap-2 font-semibold text-primary-foreground">
               <img
                 src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/seai-white-logo-GFPDoVoIqDrc4iNcbZ6LSzgWXQameO.png"
                 alt="SeAI Logo"
-                className="h-8 w-auto"
+                className="h-7 w-auto"
               />
             </a>
-            <Button variant="ghost" size="icon" onClick={toggleMobileMenu} className="text-primary-foreground">
-              <X />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleMobileMenu} 
+              className="text-primary-foreground hover:bg-primary-foreground/10 h-8 w-8"
+            >
+              <X className="h-5 w-5" />
             </Button>
           </div>
-          <nav className="mt-8">
+          <nav className="space-y-1">
             {menuItems.map((item) => (
               <a
                 key={item.name}
                 href={`${item.href}/`}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground transition-colors hover:bg-primary-foreground/10"
+                className={`flex items-center gap-3 rounded-lg px-3 py-3 text-primary-foreground transition-colors hover:bg-primary-foreground/10 ${
+                  pathname === item.href ? "bg-primary-foreground/20" : ""
+                }`}
                 onClick={toggleMobileMenu}
               >
                 <item.icon className="h-5 w-5" />
-                <span>{item.name}</span>
+                <span className="font-medium">{item.name}</span>
               </a>
             ))}
           </nav>
           {user && (
-            <div className="mt-8 flex items-center gap-2">
-              <Avatar>
-                <AvatarImage alt={user?.email || ''} />
-                <AvatarFallback>{user?.email ? user.email[0].toUpperCase() : 'U'}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-primary-foreground">{user.email}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={logout}
-                  className="text-primary-foreground hover:bg-primary-foreground/10"
-                >
-                  Logout
-                </Button>
+            <div className="mt-6 pt-4 border-t border-primary-foreground/20">
+              <div className="flex items-center gap-3 px-3 py-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage alt={user?.email || ''} />
+                  <AvatarFallback className="text-xs">{user?.email ? user.email[0].toUpperCase() : 'U'}</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="text-sm font-medium text-primary-foreground truncate">{user.email}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={logout}
+                    className="text-xs text-primary-foreground hover:bg-primary-foreground/10 h-6 px-0 justify-start"
+                  >
+                    Logout
+                  </Button>
+                </div>
               </div>
             </div>
           )}
