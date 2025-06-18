@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { Card } from "@/components/ui/card"
 import { formatDateForDisplay, formatDateForApi, formatDateValue, isValidDate } from "@/lib/date-utils"
+import { RANK_LABELS } from "@/lib/rank-labels"
 
 // Helper functions for date conversion
 const formatDateForInput = (dateStr: string): string => {
@@ -349,7 +350,7 @@ export function SmartScannerAddDocumentDialog({
                     <SelectContent>
                       {attendees.map((attendee) => (
                         <SelectItem key={attendee.id} value={attendee.id}>
-                          {attendee.name} {attendee.surname} - {attendee.rank}
+                          {attendee.name} {attendee.surname} - {RANK_LABELS[attendee.rank] || attendee.rank}
                         </SelectItem>
                       ))}
                     </SelectContent>

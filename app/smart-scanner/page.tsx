@@ -27,6 +27,7 @@ import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react"
 import { SmartScannerAddDocumentDialog } from "@/components/dialogs/smart-scanner-add-document-dialog"
 import { API_BASE_URL } from "@/lib/config/api"
 import { formatDateForDisplay, formatDateForApi } from "@/lib/date-utils"
+import { RANK_LABELS } from "@/lib/rank-labels"
 
 interface DocumentWithAuthority extends Required<Pick<Document, 'id'>> {
   issuingAuthority?: string;
@@ -590,7 +591,7 @@ export default function SmartScanner() {
                     <SelectItem key={attendee.id} value={attendee.id} className="text-base py-3">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1">
                         <span className="font-medium">{attendee.name} {attendee.surname}</span>
-                        <span className="text-sm text-gray-500">• {attendee.rank}</span>
+                        <span className="text-sm text-gray-500">• {RANK_LABELS[attendee.rank] || attendee.rank}</span>
                       </div>
                     </SelectItem>
                   ))}
