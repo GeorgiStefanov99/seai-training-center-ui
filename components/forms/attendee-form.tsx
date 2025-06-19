@@ -43,6 +43,11 @@ const formSchema = z.object({
     required_error: "Please select a rank.",
   }),
   remark: z.string().optional(),
+  windaId: z.string()
+    .max(10, { message: "Wind ID must not exceed 10 characters" })
+    .regex(/^[a-zA-Z0-9]*$/, { message: "Wind ID must be alphanumeric" })
+    .optional()
+    .or(z.literal("")),
 })
 
 export type AttendeeFormValues = z.infer<typeof formSchema>
@@ -63,6 +68,7 @@ export function AttendeeForm({
     telephone: "",
     rank: "CAPTAIN" as AttendeeRank,
     remark: "",
+    windaId: "",
   },
   onSubmit,
   onCancel,
@@ -155,6 +161,24 @@ export function AttendeeForm({
                   ))}
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="windaId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Wind ID (Optional)</FormLabel>
+              <FormControl>
+                <Input 
+                  placeholder="Enter Wind ID (max 10 alphanumeric characters)" 
+                  maxLength={10}
+                  {...field} 
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}

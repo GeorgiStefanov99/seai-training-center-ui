@@ -86,7 +86,18 @@ export type AttendeeRank =
   | "SPA_ATTENDANT"
   | "HAIRDRESSER"
   | "BEAUTY_THERAPIST"
-  | "FITNESS_INSTRUCTOR";
+  | "FITNESS_INSTRUCTOR"
+  | "IRATA1"
+  | "IRATA2"
+  | "IRATA3"
+  | "WIND_TURBINE_TECHNICIAN_CONSTRUCTION"
+  | "WIND_TURBINE_TECHNICIAN_SERVICE"
+  | "WARRANTY_SURVEYOR"
+  | "ROV_PILOT"
+  | "DRONE_PILOT"
+  | "BATIMETRIC_SURVEYOR"
+  | "CTV_DECKHAND"
+  | "CTV_MASTER";
 
 // Base attendee properties used for creating and updating
 export interface AttendeeBase {
@@ -96,6 +107,7 @@ export interface AttendeeBase {
   telephone: string;
   rank: AttendeeRank;
   remark?: string;
+  windaId?: string;
 }
 
 // Interface for creating a new attendee (POST request)

@@ -629,6 +629,12 @@ function AttendeeDetailContent() {
                       <span>{RANK_LABELS[attendee.rank] || attendee.rank}</span>
                     </div>
                   </div>
+                  {attendee.windaId && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">WINDA ID</h3>
+                      <p className="font-mono">{attendee.windaId}</p>
+                    </div>
+                  )}
                 </div>
                 
                 {attendee.remark && (

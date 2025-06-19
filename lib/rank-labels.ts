@@ -103,5 +103,18 @@ export const RANK_LABELS: Record<AttendeeRank, string> = {
   SPA_ATTENDANT: "Spa Attendant",
   HAIRDRESSER: "Hairdresser",
   BEAUTY_THERAPIST: "Beauty Therapist",
-  FITNESS_INSTRUCTOR: "Fitness Instructor"
+  FITNESS_INSTRUCTOR: "Fitness Instructor",
+  
+  // Industrial & Technical ranks
+  IRATA1: "IRATA 1",
+  IRATA2: "IRATA 2",
+  IRATA3: "IRATA 3",
+  WIND_TURBINE_TECHNICIAN_CONSTRUCTION: "Wind Turbine Technician Construction",
+  WIND_TURBINE_TECHNICIAN_SERVICE: "Wind Turbine Technician Service",
+  WARRANTY_SURVEYOR: "Warranty Surveyor",
+  ROV_PILOT: "ROV Pilot",
+  DRONE_PILOT: "Drone Pilot",
+  BATIMETRIC_SURVEYOR: "Batimetric Surveyor",
+  CTV_DECKHAND: "CTV Deckhand",
+  CTV_MASTER: "CTV Master"
 };

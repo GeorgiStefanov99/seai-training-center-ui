@@ -92,6 +92,7 @@ export function AttendeeDialog({
         telephone: attendee.telephone,
         rank: attendee.rank,
         remark: attendee.remark || "",
+        windaId: attendee.windaId || "",
       }
     : undefined
 
