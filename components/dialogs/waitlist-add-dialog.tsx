@@ -208,7 +208,7 @@ export function WaitlistAddDialog({
       setIsSubmitting(false);
     }
   };
-  
+
   // Handle new attendee submission
   const handleNewAttendeeSubmit = async (attendeeData: any) => {
     if (!trainingCenterId) {
@@ -435,14 +435,6 @@ export function WaitlistAddDialog({
                 </div>
                 
                 <AttendeeForm
-                  defaultValues={{
-                    name: "",
-                    surname: "",
-                    email: "",
-                    telephone: "", // Changed from phoneNumber to telephone to match the type
-                    rank: "PRIVATE" as AttendeeRank,
-                    remark: ""
-                  }}
                   onSubmit={handleNewAttendeeSubmit}
                   onCancel={() => setActiveTab("existing")}
                   isSubmitting={isCreatingAttendee}

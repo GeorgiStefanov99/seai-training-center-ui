@@ -64,7 +64,7 @@ export function AttendeeForm({
     surname: "",
     email: "",
     telephone: "",
-    rank: "CAPTAIN" as AttendeeRank,
+    rank: "ORDINARY_SEAMAN" as AttendeeRank,
     remark: "",
     windaId: "",
     fatherName: "",
