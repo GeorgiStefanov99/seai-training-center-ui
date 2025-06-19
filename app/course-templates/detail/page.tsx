@@ -167,8 +167,6 @@ function CourseTemplateDetailContent() {
 
   // Function to fetch template data
   const fetchTemplateData = async () => {
-    // Debug: Log the parameters we're using for the API call
-    console.log('Fetching template with ID:', templateId, 'for training center:', trainingCenterId)
     
     if (!templateId || !trainingCenterId) {
       setError("Missing template ID or training center ID")
@@ -196,7 +194,6 @@ function CourseTemplateDetailContent() {
       
       // Use mock data for development/testing
       if (process.env.NODE_ENV === 'development') {
-        console.log('Using mock data for development')
         setTemplate(MOCK_TEMPLATES[templateId || ""] || null)
         setActiveCourses(MOCK_ACTIVE_COURSES[templateId || ""] || [])
       }
@@ -207,13 +204,11 @@ function CourseTemplateDetailContent() {
   
   useEffect(() => {
     if (!templateId) {
-      console.log('DEBUG - Template Detail - Missing template ID')
       router.push('/course-templates')
       return
     }
     
     if (!trainingCenterId) {
-      console.log('DEBUG - Template Detail - Missing training center ID')
       setError("You must be logged in to view template details")
       setIsLoading(false)
       return
@@ -309,7 +304,6 @@ function CourseTemplateDetailContent() {
       
       // Add timestamp to prevent caching issues
       const timestamp = new Date().getTime()
-      console.log(`Fetching waitlist records at ${timestamp} for template ${templateId}`)
       
       // Add timestamp to URL to prevent caching
       const data = await getWaitlistRecordsByTemplate({
@@ -317,7 +311,6 @@ function CourseTemplateDetailContent() {
         courseTemplateId: `${templateId}?_t=${timestamp}`
       })
       
-      console.log(`Received ${data.length} waitlist records:`, data)
       setWaitlistRecords(data)
       
       // After fetching waitlist records, fetch remarks for each attendee

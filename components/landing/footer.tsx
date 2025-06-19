@@ -25,11 +25,6 @@ export default function Footer() {
       to: "contacts@seai.co", // Hardcoded recipient email
     }
 
-    // Here you would typically send this data to your server
-    console.log("Sending form data:", data)
-
-    // For demonstration purposes, we're just logging the data
-    // In a real application, you'd make an API call here
 
     setShowCareersDialog(false)
   }

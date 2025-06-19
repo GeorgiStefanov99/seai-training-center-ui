@@ -18,13 +18,11 @@ import { formatDateForDisplay } from "@/lib/date-utils"
 
 // Helper function to convert DD/MM/YYYY to YYYY-MM-DD for HTML date input
 const formatDateForInput = (dateStr: string): string => {
-  console.log('formatDateForInput called with:', dateStr);
   
   if (!dateStr) return '';
   
   // If it's already in YYYY-MM-DD format, return as is
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    console.log('Already in YYYY-MM-DD format:', dateStr);
     return dateStr;
   }
   
@@ -32,7 +30,6 @@ const formatDateForInput = (dateStr: string): string => {
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
     const [day, month, year] = dateStr.split('/');
     const result = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    console.log(`Converting ${dateStr} to ${result}`);
     return result;
   }
   
@@ -40,14 +37,11 @@ const formatDateForInput = (dateStr: string): string => {
   try {
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) {
-      console.log('Invalid date:', dateStr);
       return '';
     }
     const result = date.toISOString().split('T')[0];
-    console.log(`Parsed ${dateStr} to ${result}`);
     return result;
   } catch {
-    console.log('Error parsing date:', dateStr);
     return '';
   }
 };
@@ -103,10 +97,6 @@ export function DocumentsPageEditDocumentDialog({
                         !document.id; // Also update if document is empty
     
     if (shouldUpdate) {
-      console.log("[EditDialog] Updating document state:", {
-        oldId: document.id,
-        newId: initialDocument.id
-      });
       
       setDocument(initialDocument);
       setIsVerified(initialDocument.isVerified || false);
@@ -133,8 +123,6 @@ export function DocumentsPageEditDocumentDialog({
         isVerified: isVerified,
         attendeeId: selectedAttendee?.id || document.attendeeId
       };
-
-      console.log("Updating document with data:", data);
 
       await onSave(data, null);
       

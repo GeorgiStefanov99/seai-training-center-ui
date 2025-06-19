@@ -80,8 +80,6 @@ export const getDocumentFiles = async (params: FileApiParams): Promise<FileItem[
       { headers }
     );
     
-    console.log('Raw files response:', response.data);
-    
     // Transform the response to match our FileItem interface
     const files: FileItem[] = response.data.map((fileResponse: any, index: number) => {
       // Extract file ID using our robust helper function
@@ -108,12 +106,6 @@ export const getDocumentFiles = async (params: FileApiParams): Promise<FileItem[
         ? `${fileResponse.body.substring(0, 50)}...` 
         : 'No body content';
       
-      console.log(`File ${index} ID extraction:`, { 
-        extractedId: fileId, 
-        contentDisposition: fileResponse.headers?.['Content-Disposition'] || fileResponse.headers?.['content-disposition'],
-        bodyPreview
-      });
-      
       return {
         id: fileId || `file-${index + 1}`,
         name: fileName,
@@ -126,7 +118,6 @@ export const getDocumentFiles = async (params: FileApiParams): Promise<FileItem[
       };
     });
     
-    console.log('Transformed files:', files);
     return files;
   } catch (error) {
     console.error('Error fetching document files:', error);
@@ -273,7 +264,6 @@ export const getFileContent = async (params: FileApiParams): Promise<{ content: 
   const cachedData = fileContentCache[cacheKey];
   
   if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_EXPIRATION_MS) {
-    console.log('Using cached file content for:', fileId);
     return { content: cachedData.content, contentType: cachedData.contentType };
   }
   
@@ -286,7 +276,6 @@ export const getFileContent = async (params: FileApiParams): Promise<{ content: 
       const fileData = await getFileById(params);
       fileName = fileData.name || '';
       knownContentType = fileData.contentType || '';
-      console.log('Retrieved file metadata:', { fileName, contentType: knownContentType });
     } catch (metadataError) {
       console.warn('Could not retrieve file metadata:', metadataError);
     }
@@ -296,7 +285,6 @@ export const getFileContent = async (params: FileApiParams): Promise<{ content: 
       const contentTypeFromName = getContentTypeFromFileName(fileName);
       if (contentTypeFromName) {
         knownContentType = contentTypeFromName;
-        console.log('Determined content type from file name:', knownContentType);
       }
     }
     
@@ -304,7 +292,6 @@ export const getFileContent = async (params: FileApiParams): Promise<{ content: 
     const headers = getAuthHeaders(token);
     
     // Use the direct file download endpoint (not /content)
-    console.log(`Fetching file content from: ${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/attendees/${attendeeId}/documents/${documentId}/files/${fileId}`);
     
     // Get the actual file content
     const response = await axios.get(
@@ -319,14 +306,6 @@ export const getFileContent = async (params: FileApiParams): Promise<{ content: 
     const contentType = response.headers['content-type'] || knownContentType || 
       (fileName ? getContentTypeFromFileName(fileName) : null) || 'application/octet-stream';
     
-    console.log('Final content type determination:', {
-      fromHeaders: response.headers['content-type'],
-      fromMetadata: knownContentType,
-      fromFileName: fileName ? getContentTypeFromFileName(fileName) : null,
-      finalContentType: contentType
-    });
-    
-    console.log('Response data length:', response.data?.length || 0);
     
     // Ensure we have valid data before converting
     if (!response.data) {
@@ -343,7 +322,6 @@ export const getFileContent = async (params: FileApiParams): Promise<{ content: 
     let content = '';
     try {
       content = Buffer.from(response.data).toString('base64');
-      console.log('Base64 content length:', content.length);
       
       // Validate base64 content
       if (!content || content.length === 0) {

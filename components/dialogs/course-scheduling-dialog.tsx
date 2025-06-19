@@ -181,11 +181,6 @@ export function CourseSchedulingDialog({
         description: existingCourse?.description || template?.description || "",
       });
       
-      console.log("Form reset with values:", {
-        existingCourse,
-        template,
-        formValues: form.getValues()
-      });
     }
   }, [open, existingCourse, template, form]);
 
@@ -241,8 +236,6 @@ export function CourseSchedulingDialog({
           templateId: existingCourse.templateId || ""
         };
         
-        console.log("Updating course with data:", updateRequest);
-        
         // Update the course
         await updateCourse({ 
           trainingCenterId, 
@@ -264,8 +257,6 @@ export function CourseSchedulingDialog({
           maxSeats: data.maxSeats,
           templateId: template?.id || "",
         };
-        
-        console.log("Creating course with data:", courseRequest);
         
         // Create the course
         const createdCourse = await createCourse({ trainingCenterId }, courseRequest);

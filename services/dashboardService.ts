@@ -66,7 +66,6 @@ export async function getDashboardData({
   try {
     // If we're in development mode and there's no API, use mock data
     if (process.env.NODE_ENV === 'development' && !process.env.NEXT_PUBLIC_API_BASE_URL) {
-      console.log('Using mock dashboard data in development mode');
       return getMockDashboardData();
     }
 
@@ -94,12 +93,7 @@ export async function getDashboardData({
       attendees = paginatedAttendees.attendees || [];
       waitlistRecords = Array.isArray(results[1]) ? results[1] : [];
       courseTemplates = Array.isArray(results[2]) ? results[2] : [];
-      console.log('Dashboard data fetched (paginated):', {
-        attendeesCount: attendees.length,
-        totalAttendees,
-        waitlistCount: waitlistRecords.length,
-        templatesCount: courseTemplates.length
-      });
+    
     } catch (error) {
       console.error('Error fetching dashboard data components:', error);
       // Continue with empty arrays to avoid breaking the dashboard

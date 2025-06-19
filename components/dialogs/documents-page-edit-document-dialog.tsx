@@ -70,11 +70,6 @@ export function DocumentsPageEditDocumentDialog({
                         !document.id; // Also update if document is empty
     
     if (shouldUpdate) {
-      console.log("[EditDialog] Updating document state:", {
-        oldId: document.id,
-        newId: initialDocument.id
-      });
-      
       setDocument(initialDocument);
       setIsVerified(initialDocument.isVerified || false);
       setNoExpiryDate(!initialDocument.expiryDate);
@@ -251,8 +246,6 @@ export function DocumentsPageEditDocumentDialog({
         isVerified: isVerified,
         attendeeId: selectedAttendee?.id || document.attendeeId
       };
-
-      console.log("Updating document with data:", data);
 
       await onSave(data, selectedFiles.length > 0 ? selectedFiles : null);
       

@@ -163,13 +163,10 @@ function AttendeeDetailContent() {
     setIsLoadingWaitlist(true)
     try {
       // Fetch waitlist records for this attendee
-      console.log('Fetching waitlist records for attendee:', attendeeId)
       const records = await getWaitlistRecordsByAttendee({ trainingCenterId, attendeeId: attendeeId as string })
-      console.log('Waitlist records received:', records.length, records)
       
       // If we have no records, just set empty arrays and return
       if (!records || records.length === 0) {
-        console.log('No waitlist records found')
         setWaitlistRecords([])
         setCourseTemplates({})
         setIsLoadingWaitlist(false)
@@ -194,12 +191,10 @@ function AttendeeDetailContent() {
         
         // Skip already processed templates
         if (templates[templateId]) {
-          console.log(`Template for ${templateId} already cached`)
           continue
         }
         
         try {
-          console.log(`Fetching template for ID: ${templateId}`)
           
           // Fetch the template data
           const templateData = await getCourseTemplateById({
@@ -208,7 +203,6 @@ function AttendeeDetailContent() {
           })
           
           if (templateData) {
-            console.log(`Template data received for ${templateId}:`, templateData)
             templates[templateId] = templateData
             
             // Update the state with each template as it's fetched
@@ -249,7 +243,7 @@ function AttendeeDetailContent() {
         }
       }
       
-      console.log('All templates processed:', Object.keys(templates).length, templates)
+
     } catch (err) {
       console.error('Error fetching waitlist records:', err)
       toast.error('Failed to load waitlist records. Please try again.')
@@ -327,11 +321,8 @@ function AttendeeDetailContent() {
 
   useEffect(() => {
     const fetchAttendee = async () => {
-      // Debug: Log the parameters we're using for the API call
-      console.log('DEBUG - Attendee Detail - Fetch params:', { trainingCenterId, attendeeId })
       
       if (!trainingCenterId || !attendeeId) {
-        console.log('DEBUG - Attendee Detail - Missing required params')
         setIsLoading(false)
         setError("Missing required information to fetch attendee details")
         return
@@ -339,14 +330,12 @@ function AttendeeDetailContent() {
       
       try {
         setIsLoading(true)
-        console.log('DEBUG - Attendee Detail - Calling API with params:', { trainingCenterId, attendeeId })
         
         const data = await getAttendeeById({
           trainingCenterId,
           attendeeId
         })
         
-        console.log('DEBUG - Attendee Detail - API response:', data)
         setAttendee(data)
         setError(null)
         

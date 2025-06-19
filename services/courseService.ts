@@ -93,9 +93,6 @@ export const createCourse = async (params: CourseApiParams, data: CreateCourseRe
     const token = getAuthToken();
     const headers = getAuthHeaders(token);
     
-    // Log the request payload for debugging
-    console.log('Creating course with data:', JSON.stringify(data, null, 2));
-    
     const response = await axios.post<Course>(
       `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/courses`,
       data,

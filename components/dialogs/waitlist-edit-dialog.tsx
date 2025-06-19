@@ -103,7 +103,6 @@ export function WaitlistEditDialog({
         waitlistRecordId: waitlistRecord.id
       }, updatePayload);
       
-      console.log('API response after update:', updatedRecord);
       toast.success("Waitlist record updated successfully");
       // First call onSuccess to refresh data
       onSuccess();

@@ -107,18 +107,11 @@ function WaitlistContent() {
       setIsLoading(true)
       // Force cache invalidation by adding a timestamp parameter
       const timestamp = new Date().getTime()
-      console.log('Fetching waitlist records with timestamp:', timestamp)
       
       // Clear existing records before fetching to avoid stale data
       setWaitlistRecords([])
       
       const data = await getWaitlistRecords({ trainingCenterId, timestamp })
-      console.log('Fetched waitlist records:', data)
-      
-      // Log detailed information about each record
-      data.forEach(record => {
-        console.log(`Record ID: ${record.id}, Status: ${record.status}, Template ID: ${record.templateId}`)
-      })
       
       setWaitlistRecords(data)
       setError(null)

@@ -114,13 +114,6 @@ export default function SmartScanner() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
-      console.log('Starting OCR request with file:', {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        timeout: timeoutDuration / 1000 + ' seconds'
-      });
-
       try {
         const response = await fetch(
           `${API_BASE_URL}/api/v1/training-centers/${user.userId}/attendees/${selectedAttendee.id}/ocr`,
@@ -162,15 +155,7 @@ export default function SmartScanner() {
         }
 
         const data = await response.json()
-        console.log('Scanned document response:', data)
         
-        // Debug: Test date conversion
-        console.log('Testing date conversion:')
-        console.log('Original issueDate:', data.issueDate)
-        console.log('Converted issueDate:', data.issueDate ? formatDateForDisplay(data.issueDate) : 'undefined')
-        console.log('Original expiryDate:', data.expiryDate)
-        console.log('Converted expiryDate:', data.expiryDate ? formatDateForDisplay(data.expiryDate) : 'undefined')
-
         // Create a base document with the file
         const baseDocument: Partial<Document> = {
           id: data.id,
@@ -203,11 +188,6 @@ export default function SmartScanner() {
           apiFileUrl: apiFileUrl,
           filePreviewItem: filePreviewItem
         }
-
-        console.log('Document to set:')
-        console.log('- issueDate:', documentToSet.issueDate)
-        console.log('- expiryDate:', documentToSet.expiryDate)
-        console.log('- Full document:', documentToSet)
 
         // If OCR was successful, add the extracted data
         if (data.name || data.number || data.issueDate || data.expiryDate) {
@@ -338,8 +318,6 @@ export default function SmartScanner() {
           isVerified: data.isVerified || false
         }
 
-        console.log('Updating document with data:', updateData)
-
         response = await fetch(
           `${API_BASE_URL}/api/v1/training-centers/${user.userId}/attendees/${selectedAttendee.id}/documents/${scannedDocument.id}`,
           {
@@ -360,8 +338,6 @@ export default function SmartScanner() {
           expiryDate: data.expiryDate ? formatDateForApi(data.expiryDate) : undefined,
           isVerified: data.isVerified || false
         }
-
-        console.log('Creating document with data:', createData)
 
         response = await fetch(
           `${API_BASE_URL}/api/v1/training-centers/${user.userId}/attendees/${selectedAttendee.id}/documents`,
@@ -387,7 +363,6 @@ export default function SmartScanner() {
       }
 
       const savedDocument = await response.json()
-      console.log('Document saved successfully:', savedDocument)
 
       setDocumentSaved(true)
       toast.success('Document saved successfully')
@@ -418,7 +393,6 @@ export default function SmartScanner() {
     }
 
     try {
-      console.log('Saving new document:', data)
       
       // If this is from OCR, update the existing document
       if (scannedDocument?.id) {
@@ -450,7 +424,6 @@ export default function SmartScanner() {
       }
 
       const newDocument = await response.json()
-      console.log('Document created successfully:', newDocument)
 
       toast.success('Document created successfully')
       setIsAddDialogOpen(false)
@@ -488,7 +461,6 @@ export default function SmartScanner() {
         console.error('Failed to delete cancelled document:', response.status, response.statusText)
         // Don't show error to user since they're cancelling anyway
       } else {
-        console.log('Cancelled document deleted successfully')
       }
 
     } catch (error) {
@@ -522,15 +494,7 @@ export default function SmartScanner() {
     setIsEditDialogOpen(true)
   }
 
-  // Debug: Log when scannedDocument changes
   useEffect(() => {
-    console.log('scannedDocument state changed:', scannedDocument)
-    if (scannedDocument) {
-      console.log('scannedDocument dates:', {
-        issueDate: scannedDocument.issueDate,
-        expiryDate: scannedDocument.expiryDate
-      })
-    }
   }, [scannedDocument])
 
   // Load attendees on component mount

@@ -249,12 +249,10 @@ export default function AttendeesPage() {
   
   // Navigate to attendee detail page
   const navigateToAttendeeDetail = (attendee: Attendee) => {
-    console.log('DEBUG - Navigation - Attendee clicked:', attendee)
     if (attendee.id) {
-      console.log('DEBUG - Navigation - Navigating to:', `/attendees/attendee-detail?id=${attendee.id}`)
       router.push(`/attendees/attendee-detail?id=${attendee.id}`)
     } else {
-      console.log('DEBUG - Navigation - Missing attendee ID, cannot navigate')
+      toast.error("Missing attendee ID, cannot navigate")
     }
   }
   
