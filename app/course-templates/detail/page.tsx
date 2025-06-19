@@ -16,6 +16,8 @@ import { deleteCourse, archiveCourse } from "@/services/courseService"
 import { getWaitlistRecordsByTemplate, deleteWaitlistRecord, updateWaitlistRecord } from "@/services/waitlistService"
 import { WaitlistRecord } from "@/types/course-template"
 import { Remark } from "@/types/remark"
+import { RANK_LABELS } from "@/lib/rank-labels"
+import { AttendeeRank } from "@/types/attendee"
 import { CourseTemplateDialog } from "@/components/dialogs/course-template-dialog"
 import { CourseSchedulingDialog } from "@/components/dialogs/course-scheduling-dialog"
 import { CourseEditDialog } from "@/components/dialogs/course-edit-dialog"
@@ -965,7 +967,7 @@ function CourseTemplateDetailContent() {
                                 <TableCell>{record.attendeeResponse.email}</TableCell>
                                 <TableCell>{record.attendeeResponse.telephone || "N/A"}</TableCell>
                                 <TableCell>
-                                  {record.attendeeResponse.rank.replace(/_/g, " ")}
+                                  {record.attendeeResponse.rank ? RANK_LABELS[record.attendeeResponse.rank] || record.attendeeResponse.rank : "N/A"}
                                 </TableCell>
                                 <TableCell>
                                   <Badge variant={getStatusBadgeVariant(record.status)}>

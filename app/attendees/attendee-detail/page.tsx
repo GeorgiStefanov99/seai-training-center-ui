@@ -430,11 +430,12 @@ function AttendeeDetailContent() {
       // Use type assertion to handle the AttendeeRank type mismatch
       const attendeeResponse = {
         id: attendee.id,
-        name: attendee.name,
-        surname: attendee.surname,
-        email: attendee.email,
+        name: attendee.name || '',
+        surname: attendee.surname || '',
+        email: attendee.email || '',
         telephone: attendee.telephone || '',
         rank: (attendee.rank || 'CAPTAIN') as any // Use type assertion to handle different rank enums
+        
       }
       
       const enrichedRecord = {
@@ -543,7 +544,7 @@ function AttendeeDetailContent() {
   }
 
   return (
-    <PageLayout title={`${attendee.name} ${attendee.surname}`}>
+    <PageLayout title={`${attendee.name || ''} ${attendee.surname || ''}`.trim() || 'Attendee Details'}>
       <div className="mb-6">
         <Button 
           variant="outline" 
@@ -566,22 +567,28 @@ function AttendeeDetailContent() {
           
           <div className="flex-1 space-y-2">
             <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-              <h1 className="text-2xl font-bold">{attendee.name} {attendee.surname}</h1>
-              <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
-                {RANK_LABELS[attendee.rank] || attendee.rank}
-              </div>
+              <h1 className="text-2xl font-bold">{(attendee.name || '') + ' ' + (attendee.surname || '')}</h1>
+              {attendee.rank && (
+                <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
+                  {RANK_LABELS[attendee.rank] || attendee.rank}
+                </div>
+              )}
             </div>
             
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Mail className="h-4 w-4" />
-                <span>{attendee.email}</span>
+                          <div className="flex flex-col gap-1">
+                {attendee.email && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Mail className="h-4 w-4" />
+                    <span>{attendee.email}</span>
+                  </div>
+                )}
+                {attendee.telephone && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="h-4 w-4" />
+                    <span>{attendee.telephone}</span>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Phone className="h-4 w-4" />
-                <span>{attendee.telephone}</span>
-              </div>
-            </div>
           </div>
           
           <Button onClick={() => setEditDialogOpen(true)} className="shrink-0">
@@ -610,25 +617,33 @@ function AttendeeDetailContent() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Full Name</h3>
-                    <p>{attendee.name} {attendee.surname}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Email</h3>
-                    <p>{attendee.email}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Phone</h3>
-                    <p>{attendee.telephone}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Rank</h3>
-                    <div className="flex items-center gap-2">
-                      <Award className="h-4 w-4 text-primary" />
-                      <span>{RANK_LABELS[attendee.rank] || attendee.rank}</span>
+                  {(attendee.name || attendee.surname) && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Full Name</h3>
+                      <p>{(attendee.name || '') + ' ' + (attendee.surname || '')}</p>
                     </div>
-                  </div>
+                  )}
+                  {attendee.email && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Email</h3>
+                      <p>{attendee.email}</p>
+                    </div>
+                  )}
+                  {attendee.telephone && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Phone</h3>
+                      <p>{attendee.telephone}</p>
+                    </div>
+                  )}
+                  {attendee.rank && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Rank</h3>
+                      <div className="flex items-center gap-2">
+                        <Award className="h-4 w-4 text-primary" />
+                        <span>{RANK_LABELS[attendee.rank] || attendee.rank}</span>
+                      </div>
+                    </div>
+                  )}
                   {attendee.windaId && (
                     <div>
                       <h3 className="text-sm font-medium text-muted-foreground">WINDA ID</h3>

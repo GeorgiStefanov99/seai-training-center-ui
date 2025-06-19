@@ -32,7 +32,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/useAuth"
-import { Attendee, AttendeeRank } from "@/types/attendee"
+import { Attendee, AttendeeRank, CreateAttendeeRequest } from "@/types/attendee"
 import { WaitlistRecord, WaitlistAttendeeResponse } from "@/types/course-template"
 import { getPaginatedAttendees, createAttendee } from "@/services/attendeeService"
 import { assignAttendeeToCourse } from "@/services/courseAttendeeService"
@@ -159,9 +159,9 @@ export function CourseAttendeeDialog({
     return waitlistRecords.filter(record => {
       const { name, surname, email } = record.attendeeResponse;
       return (
-        name.toLowerCase().includes(query) ||
-        surname.toLowerCase().includes(query) ||
-        email.toLowerCase().includes(query)
+        name?.toLowerCase().includes(query) ||
+        surname?.toLowerCase().includes(query) ||
+        email?.toLowerCase().includes(query)
       );
     });
   }, [waitlistRecords, waitlistSearchQuery]);
@@ -240,7 +240,7 @@ export function CourseAttendeeDialog({
       // First create the attendee
       const newAttendee = await createAttendee(
         { trainingCenterId },
-        attendeeData
+        attendeeData as CreateAttendeeRequest
       );
       
       // Then assign the new attendee to the course
@@ -270,7 +270,8 @@ export function CourseAttendeeDialog({
   };
 
   // Format rank for display
-  const formatRank = (rank: string) => {
+  const formatRank = (rank?: string) => {
+    if (!rank) return "N/A";
     return rank.replace(/_/g, " ");
   };
 
@@ -336,7 +337,7 @@ export function CourseAttendeeDialog({
                               {filteredAttendees.length > 0 ? (
                                 filteredAttendees.map((attendee) => (
                                   <SelectItem key={attendee.id} value={attendee.id}>
-                                    {`${attendee.name} ${attendee.surname} (${attendee.email}) - ${formatRank(attendee.rank)}`}
+                                    {`${attendee.name || ''} ${attendee.surname || ''} (${attendee.email || 'No email'}) - ${formatRank(attendee.rank)}`}
                                   </SelectItem>
                                 ))
                               ) : (

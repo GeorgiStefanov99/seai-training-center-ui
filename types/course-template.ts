@@ -1,3 +1,5 @@
+import { AttendeeRank } from "./attendee";
+
 // Define the currency options
 export type Currency = "USD" | "EUR" | "BGN";
 
@@ -53,9 +55,6 @@ export interface ActiveCourse {
 
 // Response type for the GET active courses endpoint
 export type GetActiveCoursesResponse = ActiveCourse[];
-
-// Attendee rank type
-export type AttendeeRank = "CAPTAIN" | "CHIEF_OFFICER" | "SECOND_OFFICER" | "THIRD_OFFICER" | "CHIEF_ENGINEER" | "SECOND_ENGINEER" | "THIRD_ENGINEER" | "FOURTH_ENGINEER" | "ELECTRICAL_ENGINEER" | "BOSUN" | "ABLE_SEAMAN" | "ORDINARY_SEAMAN" | "FITTER" | "OILER" | "WIPER" | "COOK" | "STEWARD" | "CADET" | "OTHER";
 
 // Waitlist record attendee response
 export interface WaitlistAttendeeResponse {

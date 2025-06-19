@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { Attendee, AttendeeWithDetails } from "@/types/attendee"
+import { Attendee, AttendeeWithDetails, CreateAttendeeRequest, UpdateAttendeeRequest } from "@/types/attendee"
 import { AttendeeForm, AttendeeFormValues } from "@/components/forms/attendee-form"
 import { createAttendee, updateAttendee } from "@/services/attendeeService"
 import { useAuth } from "@/hooks/useAuth"
@@ -59,13 +59,13 @@ export function AttendeeDialog({
       if (mode === "create") {
         await createAttendee(
           { trainingCenterId },
-          values
+          values as CreateAttendeeRequest
         )
         toast.success("Attendee created successfully")
       } else if (attendee?.id) {
         await updateAttendee(
           { trainingCenterId, attendeeId: attendee.id },
-          values
+          values as UpdateAttendeeRequest
         )
         toast.success("Attendee updated successfully")
       }

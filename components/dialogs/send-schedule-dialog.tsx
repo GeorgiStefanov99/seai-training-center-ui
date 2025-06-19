@@ -66,8 +66,8 @@ export function SendScheduleDialog({ open, onOpenChange }: SendScheduleDialogPro
   
   // Filter attendees based on search term
   const filteredAttendees = attendees.filter(attendee => {
-    const fullName = `${attendee.name} ${attendee.surname}`.toLowerCase()
-    const email = attendee.email.toLowerCase()
+    const fullName = `${attendee.name || ''} ${attendee.surname || ''}`.toLowerCase()
+    const email = attendee.email?.toLowerCase() || ''
     const query = searchTerm.toLowerCase()
     
     return fullName.includes(query) || email.includes(query)
@@ -112,9 +112,9 @@ export function SendScheduleDialog({ open, onOpenChange }: SendScheduleDialogPro
       .filter(([_, isSelected]) => isSelected)
       .map(([attendeeId]) => {
         const attendee = attendees.find(a => a.id === attendeeId)
-        return attendee ? attendee.email : null
+        return attendee?.email || null
       })
-      .filter(Boolean) as string[]
+      .filter((email): email is string => Boolean(email))
     
     // Combine with custom emails
     const allEmails = [...selectedAttendeeEmails, ...customEmails]
@@ -182,8 +182,8 @@ export function SendScheduleDialog({ open, onOpenChange }: SendScheduleDialogPro
                         onCheckedChange={(checked) => handleAttendeeSelect(attendee.id, checked === true)}
                       />
                       <Label htmlFor={`attendee-${attendee.id}`} className="flex-1 cursor-pointer">
-                        <span className="font-medium">{attendee.name} {attendee.surname}</span>
-                        <span className="text-sm text-muted-foreground block">{attendee.email}</span>
+                        <span className="font-medium">{attendee.name || ''} {attendee.surname || ''}</span>
+                        <span className="text-sm text-muted-foreground block">{attendee.email || 'No email'}</span>
                       </Label>
                     </div>
                   ))}

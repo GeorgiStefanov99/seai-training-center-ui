@@ -199,9 +199,9 @@ function WaitlistContent() {
     setCurrentPage(1);
     
     const filteredRecords = waitlistRecords.filter(record => {
-      const fullName = `${record.attendeeResponse.name} ${record.attendeeResponse.surname}`.toLowerCase();
-      const email = record.attendeeResponse.email.toLowerCase();
-      const rank = record.attendeeResponse.rank.toLowerCase();
+      const fullName = `${record.attendeeResponse.name || ''} ${record.attendeeResponse.surname || ''}`.toLowerCase();
+      const email = record.attendeeResponse.email?.toLowerCase() || '';
+      const rank = record.attendeeResponse.rank?.toLowerCase() || '';
       const query = searchQuery.toLowerCase();
       const templateId = record.courseTemplateId || record.templateId;
       

@@ -101,10 +101,10 @@ export type AttendeeRank =
 
 // Base attendee properties used for creating and updating
 export interface AttendeeBase {
-  name: string;
-  surname: string;
-  email: string;
-  telephone: string;
+  name?: string;
+  surname?: string;
+  email?: string;
+  telephone?: string;
   rank: AttendeeRank;
   remark?: string;
   windaId?: string;

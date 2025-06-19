@@ -85,7 +85,7 @@ export default function AttendeesPage() {
         attendee.surname?.toLowerCase().includes(query) ||
         attendee.email?.toLowerCase().includes(query) ||
         attendee.telephone?.toLowerCase().includes(query) ||
-        RANK_LABELS[attendee.rank]?.toLowerCase().includes(query) ||
+        (attendee.rank && RANK_LABELS[attendee.rank]?.toLowerCase().includes(query)) ||
         false
       );
     });

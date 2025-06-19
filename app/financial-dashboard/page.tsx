@@ -123,8 +123,8 @@ export default function FinancialDashboard() {
   // Filter attendee payments based on search term
   const filteredAttendees = dashboardData?.attendeePayments.filter(attendee => {
     return searchTerm 
-      ? attendee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        attendee.email.toLowerCase().includes(searchTerm.toLowerCase()) 
+      ? (attendee.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+        (attendee.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false)
       : true
   }) || []
 
