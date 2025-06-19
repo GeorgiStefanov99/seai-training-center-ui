@@ -82,19 +82,11 @@ export function SmartScannerAddDocumentDialog({
   // Reset form state when dialog opens or closes
   useEffect(() => {
     if (open) {
-      console.log("SmartScannerAddDocumentDialog opened")
-      console.log("Initial data:", initialData)
-      console.log("Initial issueDate raw:", initialData?.issueDate)
-      console.log("Initial expiryDate raw:", initialData?.expiryDate)
       
       // Convert dates for HTML date inputs
       // initialData comes from the parent with dates already in DD/MM/YYYY format
       const inputIssueDate = formatDateForInput(initialData?.issueDate || '')
       const inputExpiryDate = formatDateForInput(initialData?.expiryDate || '')
-      
-      console.log("Date conversion process:")
-      console.log("Issue - Raw:", initialData?.issueDate, "Input:", inputIssueDate)
-      console.log("Expiry - Raw:", initialData?.expiryDate, "Input:", inputExpiryDate)
       
       setIsVerified(initialData?.isVerified || false)
       setFilePreviewItems(initialFilePreview ? [initialFilePreview] : [])
@@ -103,9 +95,7 @@ export function SmartScannerAddDocumentDialog({
       setExpiryDate(inputExpiryDate)
       setNoExpiryDate(!initialData?.expiryDate)
       
-      console.log("State set - issueDate:", inputIssueDate, "expiryDate:", inputExpiryDate)
     } else {
-      console.log("SmartScannerAddDocumentDialog closed")
       // Clean up any file preview URLs
       filePreviewItems.forEach(item => {
         if (item.url) URL.revokeObjectURL(item.url)
@@ -129,22 +119,14 @@ export function SmartScannerAddDocumentDialog({
         isVerified: isVerified
       }
 
-      console.log("Submitting document data:", data)
-      console.log("Date conversion for save:")
-      console.log("Issue - Input:", issueDate, "→ Display:", data.issueDate)
-      console.log("Expiry - Input:", expiryDate, "→ Display:", data.expiryDate)
-
       try {
         // Call the parent component's save handler
-        console.log('Calling parent onSave function')
         const result = await onSave(data)
-        console.log('Parent onSave function completed successfully', result)
         
         // Show success message
         toast.success(data.id ? 'Document updated successfully' : 'Document added successfully')
         
         // Only close the dialog if the save was successful
-        console.log('Closing dialog after successful save')
         return true
       } catch (saveError) {
         console.error('Error from parent save handler:', saveError)
@@ -174,7 +156,6 @@ export function SmartScannerAddDocumentDialog({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
-      console.log("SmartScannerAddDocumentDialog onOpenChange:", isOpen)
       if (!isOpen && !isSubmitting) {
         handleCancel()
       }

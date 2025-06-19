@@ -138,8 +138,6 @@ export async function getFinancialDashboardData({
  * Transform archived courses data to financial dashboard data format
  */
 async function transformCoursesToFinancialData(courses: Course[], trainingCenterId: string): Promise<FinancialDashboardData> {
-  // Debug: Log the courses to see their structure
-  console.log('Courses data:', courses.map(course => ({ id: course.id, name: course.name, description: course.description })));
   const currentDate = new Date();
   
   // If no courses are found, return empty data structure

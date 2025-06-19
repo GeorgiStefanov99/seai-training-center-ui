@@ -93,20 +93,11 @@ export function DocumentPreviewDialog({
     }
     
     if (fileContents[fileId]) {
-      console.log(`Using cached content for file ${fileId}`)
       return
     }
     
     try {
-      console.log(`Loading content for file ${fileId}`, {
-        trainingCenterId,
-        attendeeId,
-        documentId,
-        fileId,
-        fileName: file.name,
-        contentType: file.contentType,
-        originalFile: file
-      })
+      
       
       setIsLoading(prev => ({ ...prev, [fileId]: true }))
       
@@ -115,11 +106,6 @@ export function DocumentPreviewDialog({
         attendeeId,
         documentId,
         fileId
-      })
-      
-      console.log(`Content loaded successfully for file ${fileId}`, {
-        contentLength: result.content?.length || 0,
-        contentType: result.contentType
       })
       
       if (!result.content) {
@@ -173,10 +159,8 @@ export function DocumentPreviewDialog({
     
     try {
       setIsDownloading(prev => ({ ...prev, [fileId]: true }))
-      console.log(`Downloading file ${fileId}`)
       
       if (fileContents[fileId]) {
-        console.log(`Using cached content for download of file ${fileId}`)
         const { content, contentType } = fileContents[fileId]
         const blob = base64ToBlob(content, contentType)
         downloadBlob(blob, file.name || `file-${fileId}`)
@@ -190,8 +174,6 @@ export function DocumentPreviewDialog({
         documentId,
         fileId
       })
-      
-      console.log(`File content fetched for download: ${fileId}`)
       
       const blob = base64ToBlob(result.content, result.contentType)
       downloadBlob(blob, file.name || `file-${fileId}`)

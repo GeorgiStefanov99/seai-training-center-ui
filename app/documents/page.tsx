@@ -46,15 +46,12 @@ function normalizeFileItem(file: any, idx: number) {
     (file.headers && parseInt(file.headers['Content-Length']?.[0] || file.headers['content-length']?.[0] || '0', 10)) ||
     (file.body && typeof file.body === 'string' ? file.body.length : 0) ||
     0;
-  const debugInfo = { id, name, contentType, size, original: file };
-  console.log('[normalizeFileItem] Normalized file:', debugInfo);
   return {
     ...file,
     id,
     name,
     contentType,
-    size,
-    _debugInfo: debugInfo,
+    size
   };
 }
 
@@ -89,7 +86,6 @@ export default function DocumentsPage() {
 
   // Function to fetch all documents
   const fetchAllDocuments = useCallback(async () => {
-    console.log('📋 Starting fetchAllDocuments with trainingCenterId:', trainingCenterId);
     
     // Check if we have a valid trainingCenterId
     if (!trainingCenterId) {
@@ -100,7 +96,6 @@ export default function DocumentsPage() {
     
     // Use a flag to track if we've already started fetching to prevent duplicate calls
     if (isFetchInProgress) {
-      console.log('📋 Already fetching data, skipping duplicate fetch');
       return;
     }
     
@@ -108,12 +103,10 @@ export default function DocumentsPage() {
     setIsFetchInProgress(true);
     
     try {
-      console.log('📋 Fetching attendees for training center:', trainingCenterId);
       let allAttendees: Attendee[] = [];
       try {
         const response = await getPaginatedAttendees(trainingCenterId, { sortBy: 'name' });
         allAttendees = response.attendees;
-        console.log('📋 Received attendees:', allAttendees.length);
       } catch (attendeeErr) {
         console.error('Error fetching attendees:', attendeeErr);
         setError("Failed to load attendees. Please try again.");
@@ -141,7 +134,6 @@ export default function DocumentsPage() {
             // Map documents to rows with their files, normalizing each file
             return documents.map(doc => {
               const files = (doc.documentFiles || []).map((file, idx) => normalizeFileItem(file, idx));
-              console.log('[fetchAllDocuments] Document:', doc.name, 'Files:', files);
               return {
                 attendee,
                 doc,
@@ -165,7 +157,6 @@ export default function DocumentsPage() {
         });
       }
       
-      console.log('📋 Processed all documents, total rows:', allRows.length);
       setRows(allRows);
       setError(null);
     } catch (err) {
@@ -180,40 +171,26 @@ export default function DocumentsPage() {
   // Initial data fetch - only run once when auth is complete
   useEffect(() => {
     // Only fetch data when auth is complete and we have a valid trainingCenterId
-    console.log('📋 Documents page useEffect running with:', {
-      authLoading,
-      trainingCenterId,
-      userAuthenticated: !!user?.isAuthenticated,
-      initialFetchDone: initialFetchDone.current
-    });
     
     // Only fetch if authentication is complete, we have a valid ID, and we haven't already fetched
     if (!authLoading && trainingCenterId && user?.isAuthenticated && !initialFetchDone.current && !isFetchInProgress) {
-      console.log('📋 Conditions met, calling fetchAllDocuments');
       initialFetchDone.current = true;
       fetchAllDocuments();
     } else {
-      console.log('📋 Skipping fetchAllDocuments, conditions not met or already fetched');
     }
   }, [trainingCenterId, authLoading, user?.isAuthenticated, isFetchInProgress]);
 
   // Fetch course templates for filter
   useEffect(() => {
-    console.log('📋 Templates useEffect running with:', {
-      authLoading,
-      trainingCenterId
-    });
+    
     
     const fetchTemplates = async () => {
       if (!trainingCenterId || authLoading) {
-        console.log('📋 Skipping template fetch, conditions not met');
         return;
       }
       
-      console.log('📋 Fetching course templates for:', trainingCenterId);
       try {
         const templates = await getCourseTemplates(trainingCenterId);
-        console.log('📋 Received templates:', templates.length);
         setCourseTemplates(templates);
       } catch (err) {
         console.error('Error fetching course templates:', err);
@@ -312,7 +289,6 @@ export default function DocumentsPage() {
   const handlePreview = (row: { attendee: Attendee; doc: Document; files: FileItem[] }) => {
     // Simply store the document ID and open the preview dialog
     // The DocumentPreviewDialog will use the files directly
-    console.log('Preview document:', row.doc.id);
     setSelectedDocument(row);
     setPreviewDialogOpen(true);
   };
