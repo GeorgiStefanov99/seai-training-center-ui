@@ -108,6 +108,8 @@ export interface AttendeeBase {
   rank: AttendeeRank;
   remark?: string;
   windaId?: string;
+  fatherName?: string;
+  presentEmployer?: string;
 }
 
 // Interface for creating a new attendee (POST request)

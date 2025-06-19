@@ -27,25 +27,23 @@ import {
 
 // Form schema with validation
 const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "Name must be at least 2 characters.",
-  }),
-  surname: z.string().min(2, {
-    message: "Surname must be at least 2 characters.",
-  }),
+  name: z.string().optional().or(z.literal("")),
+  surname: z.string().optional().or(z.literal("")),
   email: z.string().email({
     message: "Please enter a valid email address.",
-  }),
-  telephone: z.string().min(5, {
-    message: "Please enter a valid telephone number.",
-  }),
-  rank: z.enum([...Object.keys(RANK_LABELS)] as [AttendeeRank, ...AttendeeRank[]], {
-    required_error: "Please select a rank.",
-  }),
+  }).optional().or(z.literal("")),
+  telephone: z.string().optional().or(z.literal("")),
+  rank: z.enum([...Object.keys(RANK_LABELS)] as [AttendeeRank, ...AttendeeRank[]]).optional(),
   remark: z.string().optional(),
   windaId: z.string()
     .max(10, { message: "Wind ID must not exceed 10 characters" })
     .regex(/^[a-zA-Z0-9]*$/, { message: "Wind ID must be alphanumeric" })
+    .optional()
+    .or(z.literal("")),
+  fatherName: z.string()
+    .optional()
+    .or(z.literal("")),
+  presentEmployer: z.string()
     .optional()
     .or(z.literal("")),
 })
@@ -69,6 +67,8 @@ export function AttendeeForm({
     rank: "CAPTAIN" as AttendeeRank,
     remark: "",
     windaId: "",
+    fatherName: "",
+    presentEmployer: "",
   },
   onSubmit,
   onCancel,
@@ -99,12 +99,47 @@ export function AttendeeForm({
           />
           <FormField
             control={form.control}
+            name="fatherName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Father Name</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="Enter father's name" 
+                    {...field} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
             name="surname"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Last Name</FormLabel>
                 <FormControl>
                   <Input placeholder="Enter last name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="presentEmployer"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Present Employer</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="Enter current employer (optional)" 
+                    {...field} 
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -120,7 +155,7 @@ export function AttendeeForm({
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input type="email" placeholder="Enter email address" {...field} />
+                  <Input type="email" placeholder="Enter email address (optional)" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -133,7 +168,7 @@ export function AttendeeForm({
               <FormItem>
                 <FormLabel>Telephone</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter telephone number" {...field} />
+                  <Input placeholder="Enter telephone number (optional)" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -150,7 +185,7 @@ export function AttendeeForm({
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a rank" />
+                    <SelectValue placeholder="Select a rank (optional)" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent className="max-h-[300px]">
@@ -171,10 +206,10 @@ export function AttendeeForm({
           name="windaId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Wind ID (Optional)</FormLabel>
+              <FormLabel>Wind ID</FormLabel>
               <FormControl>
                 <Input 
-                  placeholder="Enter Wind ID (max 10 alphanumeric characters)" 
+                  placeholder="Enter Wind ID (optional, max 10 alphanumeric characters)" 
                   maxLength={10}
                   {...field} 
                 />

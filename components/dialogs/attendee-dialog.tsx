@@ -93,6 +93,8 @@ export function AttendeeDialog({
         rank: attendee.rank,
         remark: attendee.remark || "",
         windaId: attendee.windaId || "",
+        fatherName: attendee.fatherName || "",
+        presentEmployer: attendee.presentEmployer || "",
       }
     : undefined
 

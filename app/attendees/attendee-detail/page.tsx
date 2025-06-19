@@ -635,6 +635,18 @@ function AttendeeDetailContent() {
                       <p className="font-mono">{attendee.windaId}</p>
                     </div>
                   )}
+                  {attendee.fatherName && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Father Name</h3>
+                      <p>{attendee.fatherName}</p>
+                    </div>
+                  )}
+                  {attendee.presentEmployer && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Present Employer</h3>
+                      <p>{attendee.presentEmployer}</p>
+                    </div>
+                  )}
                 </div>
                 
                 {attendee.remark && (
