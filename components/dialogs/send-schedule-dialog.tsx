@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Loader2, Plus, X } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Loader2, Plus, X, User, Users, Building } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { getPaginatedAttendees } from "@/services/attendeeService"
+import { getAllContacts } from "@/services/contactService"
 import { sendCourseSchedule, SendCourseScheduleRequest } from "@/services/courseService"
 import { Attendee } from "@/types/attendee"
+import { Contact } from "@/types/contact"
 import { toast } from "sonner"
 
 interface SendScheduleDialogProps {
@@ -24,17 +27,21 @@ export function SendScheduleDialog({ open, onOpenChange }: SendScheduleDialogPro
   const trainingCenterId = user?.userId || ""
   
   const [attendees, setAttendees] = useState<Attendee[]>([])
+  const [contacts, setContacts] = useState<Contact[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [selectedAttendees, setSelectedAttendees] = useState<Record<string, boolean>>({})
+  const [selectedContacts, setSelectedContacts] = useState<Record<string, boolean>>({})
   const [customEmails, setCustomEmails] = useState<string[]>([])
   const [newCustomEmail, setNewCustomEmail] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
+  const [activeTab, setActiveTab] = useState<'attendees' | 'contacts'>('attendees')
   
-  // Fetch attendees when dialog opens
+  // Fetch attendees and contacts when dialog opens
   useEffect(() => {
     if (open && trainingCenterId) {
       fetchAttendees()
+      fetchContacts()
     }
   }, [open, trainingCenterId])
   
@@ -42,9 +49,11 @@ export function SendScheduleDialog({ open, onOpenChange }: SendScheduleDialogPro
   useEffect(() => {
     if (!open) {
       setSelectedAttendees({})
+      setSelectedContacts({})
       setCustomEmails([])
       setNewCustomEmail("")
       setSearchTerm("")
+      setActiveTab('attendees')
     }
   }, [open])
   
@@ -63,6 +72,19 @@ export function SendScheduleDialog({ open, onOpenChange }: SendScheduleDialogPro
       setIsLoading(false)
     }
   }
+
+  // Fetch contacts from API
+  const fetchContacts = async () => {
+    if (!trainingCenterId) return
+    
+    try {
+      const data = await getAllContacts(trainingCenterId)
+      setContacts(data)
+    } catch (error) {
+      console.error("Error fetching contacts:", error)
+      toast.error("Failed to fetch contacts")
+    }
+  }
   
   // Filter attendees based on search term
   const filteredAttendees = attendees.filter(attendee => {
@@ -72,12 +94,30 @@ export function SendScheduleDialog({ open, onOpenChange }: SendScheduleDialogPro
     
     return fullName.includes(query) || email.includes(query)
   })
+
+  // Filter contacts based on search term
+  const filteredContacts = contacts.filter(contact => {
+    const orgName = contact.nameOfOrganization?.toLowerCase() || ''
+    const email = contact.email?.toLowerCase() || ''
+    const phone = contact.phone?.toLowerCase() || ''
+    const query = searchTerm.toLowerCase()
+    
+    return orgName.includes(query) || email.includes(query) || phone.includes(query)
+  })
   
   // Handle attendee selection
   const handleAttendeeSelect = (attendeeId: string, checked: boolean) => {
     setSelectedAttendees(prev => ({
       ...prev,
       [attendeeId]: checked
+    }))
+  }
+
+  // Handle contact selection
+  const handleContactSelect = (contactId: string, checked: boolean) => {
+    setSelectedContacts(prev => ({
+      ...prev,
+      [contactId]: checked
     }))
   }
   
@@ -115,9 +155,18 @@ export function SendScheduleDialog({ open, onOpenChange }: SendScheduleDialogPro
         return attendee?.email || null
       })
       .filter((email): email is string => Boolean(email))
+
+    // Get selected contact emails
+    const selectedContactEmails = Object.entries(selectedContacts)
+      .filter(([_, isSelected]) => isSelected)
+      .map(([contactId]) => {
+        const contact = contacts.find(c => c.id === contactId)
+        return contact?.email || null
+      })
+      .filter((email): email is string => Boolean(email))
     
-    // Combine with custom emails
-    const allEmails = [...selectedAttendeeEmails, ...customEmails]
+    // Combine all emails
+    const allEmails = [...selectedAttendeeEmails, ...selectedContactEmails, ...customEmails]
     
     if (allEmails.length === 0) {
       toast.error("Please select at least one recipient")
@@ -156,7 +205,7 @@ export function SendScheduleDialog({ open, onOpenChange }: SendScheduleDialogPro
           {/* Search input */}
           <div className="relative">
             <Input
-              placeholder="Search attendees..."
+              placeholder="Search recipients..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full"
@@ -164,37 +213,87 @@ export function SendScheduleDialog({ open, onOpenChange }: SendScheduleDialogPro
             />
           </div>
           
-          {/* Attendees list */}
-          <div className="space-y-2">
-            <Label>Select Attendees</Label>
-            <ScrollArea className="h-[200px] border rounded-md p-2">
-              {isLoading ? (
-                <div className="flex justify-center items-center h-full">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : filteredAttendees.length > 0 ? (
-                <div className="space-y-2">
-                  {filteredAttendees.map((attendee) => (
-                    <div key={attendee.id} className="flex items-center space-x-2 py-1">
-                      <Checkbox
-                        id={`attendee-${attendee.id}`}
-                        checked={selectedAttendees[attendee.id] || false}
-                        onCheckedChange={(checked) => handleAttendeeSelect(attendee.id, checked === true)}
-                      />
-                      <Label htmlFor={`attendee-${attendee.id}`} className="flex-1 cursor-pointer">
-                        <span className="font-medium">{attendee.name || ''} {attendee.surname || ''}</span>
-                        <span className="text-sm text-muted-foreground block">{attendee.email || 'No email'}</span>
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  {searchTerm ? "No matching attendees found" : "No attendees found"}
-                </div>
-              )}
-            </ScrollArea>
-          </div>
+          {/* Recipients tabs */}
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'attendees' | 'contacts')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="attendees" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Attendees
+              </TabsTrigger>
+              <TabsTrigger value="contacts" className="flex items-center gap-2">
+                <Building className="h-4 w-4" />
+                Contacts
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="attendees" className="space-y-2">
+              <Label>Select Attendees</Label>
+              <ScrollArea className="h-[200px] border rounded-md p-2">
+                {isLoading ? (
+                  <div className="flex justify-center items-center h-full">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : filteredAttendees.length > 0 ? (
+                  <div className="space-y-2">
+                    {filteredAttendees.map((attendee) => (
+                      <div key={attendee.id} className="flex items-center space-x-2 py-1">
+                        <Checkbox
+                          id={`attendee-${attendee.id}`}
+                          checked={selectedAttendees[attendee.id] || false}
+                          onCheckedChange={(checked) => handleAttendeeSelect(attendee.id, checked === true)}
+                        />
+                        <Label htmlFor={`attendee-${attendee.id}`} className="flex-1 cursor-pointer">
+                          <span className="font-medium">{attendee.name || ''} {attendee.surname || ''}</span>
+                          <span className="text-sm text-muted-foreground block">{attendee.email || 'No email'}</span>
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    {searchTerm ? "No matching attendees found" : "No attendees found"}
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
+            
+            <TabsContent value="contacts" className="space-y-2">
+              <Label>Select Contacts</Label>
+              <ScrollArea className="h-[200px] border rounded-md p-2">
+                {isLoading ? (
+                  <div className="flex justify-center items-center h-full">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : filteredContacts.length > 0 ? (
+                  <div className="space-y-2">
+                    {filteredContacts.map((contact) => (
+                      <div key={contact.id} className="flex items-center space-x-2 py-1">
+                        <Checkbox
+                          id={`contact-${contact.id}`}
+                          checked={selectedContacts[contact.id] || false}
+                          onCheckedChange={(checked) => handleContactSelect(contact.id, checked === true)}
+                          disabled={!contact.email}
+                        />
+                        <Label htmlFor={`contact-${contact.id}`} className={`flex-1 cursor-pointer ${!contact.email ? 'opacity-50' : ''}`}>
+                          <span className="font-medium">{contact.nameOfOrganization}</span>
+                          <span className="text-sm text-muted-foreground block">
+                            {contact.email || 'No email available'}
+                          </span>
+                          {contact.phone && (
+                            <span className="text-xs text-muted-foreground block">{contact.phone}</span>
+                          )}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    {searchTerm ? "No matching contacts found" : "No contacts found"}
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
           
           {/* Custom email input */}
           <div className="space-y-2">
@@ -240,20 +339,41 @@ export function SendScheduleDialog({ open, onOpenChange }: SendScheduleDialogPro
           )}
         </div>
         
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSending}>
-            Cancel
-          </Button>
-          <Button onClick={handleSendSchedule} disabled={isSending}>
-            {isSending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              "Send Schedule"
-            )}
-          </Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {/* Recipients summary */}
+          <div className="flex-1 text-sm text-muted-foreground">
+            {(() => {
+              const attendeeCount = Object.values(selectedAttendees).filter(Boolean).length
+              const contactCount = Object.values(selectedContacts).filter(Boolean).length
+              const customCount = customEmails.length
+              const total = attendeeCount + contactCount + customCount
+              
+              if (total === 0) return "No recipients selected"
+              
+              const parts = []
+              if (attendeeCount > 0) parts.push(`${attendeeCount} attendee${attendeeCount !== 1 ? 's' : ''}`)
+              if (contactCount > 0) parts.push(`${contactCount} contact${contactCount !== 1 ? 's' : ''}`)
+              if (customCount > 0) parts.push(`${customCount} custom email${customCount !== 1 ? 's' : ''}`)
+              
+              return `Selected: ${parts.join(', ')}`
+            })()}
+          </div>
+          
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSending}>
+              Cancel
+            </Button>
+            <Button onClick={handleSendSchedule} disabled={isSending}>
+              {isSending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Send Schedule"
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

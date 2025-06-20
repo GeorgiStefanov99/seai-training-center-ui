@@ -15,7 +15,8 @@ import {
   Archive,
   FileText,
   DollarSign,
-  Scan
+  Scan,
+  NotebookTabs
   
 } from "lucide-react"
 import { usePathname } from "next/navigation"
@@ -30,6 +31,7 @@ const getMenuItems = (userType: string) => {
     { name: "Dashboard", icon: BarChart2, href: "/dashboard" },
     { name: "Financial Dashboard", icon: DollarSign, href: "/financial-dashboard" },
     { name: "Attendees", icon: User, href: "/attendees" },
+    { name: "Contacts", icon: NotebookTabs, href: "/contacts" },
     { name: "Course Templates", icon: BookOpen, href: "/course-templates" },
     { name: "Courses", icon: Calendar, href: "/courses" },
     { name: "Online Courses", icon: Video, href: "/online-courses" },
