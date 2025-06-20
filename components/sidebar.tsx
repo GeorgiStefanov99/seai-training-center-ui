@@ -16,7 +16,8 @@ import {
   FileText,
   DollarSign,
   Scan,
-  NotebookTabs
+  NotebookTabs,
+  FolderOpen
   
 } from "lucide-react"
 import { usePathname } from "next/navigation"
@@ -38,6 +39,7 @@ const getMenuItems = (userType: string) => {
     { name: "Waitlist", icon: ClipboardList, href: "/waitlist" },
     { name: "Archive", icon: Archive, href: "/courses/archive" },
     { name: "Documents", icon: FileText, href: "/documents" },
+    { name: "Internal Documents", icon: FolderOpen, href: "/internal-documents" },
   ]
 
   return commonItems

@@ -12,6 +12,20 @@ export interface Document {
   documentFiles?: FileItem[]; // Changed from files to documentFiles to match backend
 }
 
+// Training Center Document types
+export interface TrainingCenterDocument {
+  id: string;
+  trainingCenterId: string;
+  name: string;
+  number: string;
+  issueDate?: string;
+  expiryDate?: string;
+  createdDate: string;
+  path?: string;
+  isVerified: boolean;
+  documentFiles?: FileItem[]; // For consistency with attendee documents
+}
+
 // File types
 export interface FileItem {
   id?: string;
@@ -40,9 +54,21 @@ export interface DocumentApiParams {
   includeFiles?: boolean;
 }
 
+export interface TrainingCenterDocumentApiParams {
+  trainingCenterId: string;
+  documentId?: string;
+  includeFiles?: boolean;
+}
+
 export interface FileApiParams {
   trainingCenterId: string;
   attendeeId: string;
+  documentId: string;
+  fileId?: string;
+}
+
+export interface TrainingCenterFileApiParams {
+  trainingCenterId: string;
   documentId: string;
   fileId?: string;
 }
@@ -54,5 +80,21 @@ export interface CreateDocumentRequest {
   issueDate?: string;
   expiryDate?: string;
   verified?: boolean;
+}
+
+export interface CreateTrainingCenterDocumentRequest {
+  name: string;
+  number: string;
+  issueDate?: string;
+  expiryDate?: string;
+  isVerified: boolean;
+}
+
+export interface UpdateTrainingCenterDocumentRequest {
+  name: string;
+  number: string;
+  issueDate?: string;
+  expiryDate?: string;
+  isVerified: boolean;
 }
 
