@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
+import { ForgotPasswordDialog } from "@/components/dialogs/forgot-password-dialog"
 
 export function AuthForm() {
   const { login } = useAuth()
@@ -109,6 +110,13 @@ export function AuthForm() {
           </Button>
         </div>
       </form>
+      <div className="text-center">
+        <ForgotPasswordDialog>
+          <Button variant="link" className="px-0 text-sm">
+            Forgot your password?
+          </Button>
+        </ForgotPasswordDialog>
+      </div>
     </div>
   )
 }

@@ -17,7 +17,8 @@ import {
   DollarSign,
   Scan,
   NotebookTabs,
-  FolderOpen
+  FolderOpen,
+  Key
   
 } from "lucide-react"
 import { usePathname } from "next/navigation"
@@ -34,7 +35,7 @@ const getMenuItems = (userType: string) => {
     { name: "Attendees", icon: User, href: "/attendees" },
     { name: "Contacts", icon: NotebookTabs, href: "/contacts" },
     { name: "Course Templates", icon: BookOpen, href: "/course-templates" },
-    { name: "Courses", icon: Calendar, href: "/courses" },
+    { name: "Active Courses", icon: Calendar, href: "/active-courses" },
     { name: "Online Courses", icon: Video, href: "/online-courses" },
     { name: "Waitlist", icon: ClipboardList, href: "/waitlist" },
     { name: "Archive", icon: Archive, href: "/courses/archive" },
@@ -119,14 +120,26 @@ export function Sidebar({ mobileMenuOpen = false, onMobileMenuToggle }: SidebarP
               {sidebarExpanded && (
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">{user.email}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={logout}
-                    className="text-primary-foreground hover:bg-primary-foreground/10"
-                  >
-                    Logout
-                  </Button>
+                  <div className="flex flex-col gap-1 mt-1">
+                    <a href="/change-password/">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary-foreground hover:bg-primary-foreground/10 w-full justify-start h-7 px-2"
+                      >
+                        <Key className="h-3 w-3 mr-2" />
+                        Change Password
+                      </Button>
+                    </a>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={logout}
+                      className="text-primary-foreground hover:bg-primary-foreground/10 w-full justify-start h-7 px-2"
+                    >
+                      Logout
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -189,14 +202,26 @@ export function Sidebar({ mobileMenuOpen = false, onMobileMenuToggle }: SidebarP
                 </Avatar>
                 <div className="flex flex-col flex-1 min-w-0">
                   <span className="text-sm font-medium text-primary-foreground truncate">{user.email}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={logout}
-                    className="text-xs text-primary-foreground hover:bg-primary-foreground/10 h-6 px-0 justify-start"
-                  >
-                    Logout
-                  </Button>
+                  <div className="flex flex-col gap-1 mt-1">
+                    <a href="/change-password/" onClick={toggleMobileMenu}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-primary-foreground hover:bg-primary-foreground/10 h-6 px-0 justify-start w-full"
+                      >
+                        <Key className="h-3 w-3 mr-2" />
+                        Change Password
+                      </Button>
+                    </a>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={logout}
+                      className="text-xs text-primary-foreground hover:bg-primary-foreground/10 h-6 px-0 justify-start"
+                    >
+                      Logout
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

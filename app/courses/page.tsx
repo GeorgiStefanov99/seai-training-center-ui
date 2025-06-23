@@ -646,7 +646,7 @@ export default function CoursesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Courses</CardTitle>
+            <CardTitle>Active Courses</CardTitle>
             <CardDescription>
               {filteredCourses.length} course{filteredCourses.length !== 1 ? 's' : ''} found
             </CardDescription>
