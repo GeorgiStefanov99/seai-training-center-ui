@@ -151,7 +151,7 @@ export default function ArchivedCoursesPage() {
   
   // Go back to courses page
   const handleGoBack = () => {
-    router.push("/courses")
+            router.push("/active-courses")
   }
   
   return (
@@ -276,7 +276,7 @@ export default function ArchivedCoursesPage() {
                       <tr 
                         key={row.id || index} 
                         className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 1 ? 'bg-muted/30' : ''}`}
-                        onClick={() => router.push(`/courses/archive/detail?id=${row.id}`)}
+                        onClick={() => router.push(`/active-courses/archive/detail?id=${row.id}`)}
                       >
                         <td className="px-3 py-2 text-xs text-center">{index + 1}</td>
                         <td className="px-3 py-2 text-xs text-center font-medium">{row.name}</td>

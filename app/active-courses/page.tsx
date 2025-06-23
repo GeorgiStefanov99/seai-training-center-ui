@@ -126,7 +126,7 @@ const WeeklyPreview: React.FC<WeeklyPreviewProps> = ({ courses, isLoading }) => 
                     <tr 
                       key={course.id || index} 
                       className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 0 ? '' : 'bg-muted/30'}`}
-                      onClick={() => router.push(`/courses/detail?id=${course.id}`)}
+                      onClick={() => router.push(`/active-courses/detail?id=${course.id}`)}
                     >
                       <td className="px-2 py-1 text-xs text-center">{index + 1}</td>
                       <td className="px-2 py-1 text-xs text-center">{course.name}</td>
@@ -569,7 +569,7 @@ export default function CoursesPage() {
               <p className="text-muted-foreground">Manage all your active courses</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => router.push("/courses/archive")}>
+                              <Button variant="outline" onClick={() => router.push("/active-courses/archive")}>
                 <Calendar className="mr-2 h-4 w-4" />
                 View Archive
               </Button>
@@ -661,7 +661,7 @@ export default function CoursesPage() {
                   <tr 
                     key={row.id || index} 
                     className={`h-10 cursor-pointer hover:bg-muted/50 transition-colors ${index % 2 === 0 ? '' : 'bg-muted/30'}`}
-                    onClick={() => router.push(`/courses/detail?id=${row.id}`)}
+                                            onClick={() => router.push(`/active-courses/detail?id=${row.id}`)}
                   >
                     {columns.map((column) => (
                       <td key={column.key} className={`px-2 py-1 text-xs ${column.cellClassName || ""}`}>

@@ -821,7 +821,7 @@ function AttendeeDetailContent() {
                               <TableRow
                                 key={course.id}
                                 className="cursor-pointer hover:bg-muted/50"
-                                onClick={() => router.push(`/courses/archive/detail?id=${course.id}`)}
+                                onClick={() => router.push(`/active-courses/archive/detail?id=${course.id}`)}
                               >
                                 <TableCell className="text-center font-medium">{idx + 1}</TableCell>
                                 <TableCell className="text-center font-medium">{course.name}</TableCell>
@@ -883,7 +883,7 @@ function AttendeeDetailContent() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() => router.push(`/courses/detail?id=${course.id}`)}
+                                      onClick={() => router.push(`/active-courses/detail?id=${course.id}`)}
                                       title="View Course"
                                     >
                                       <Eye className="h-4 w-4" />

@@ -57,14 +57,25 @@ export class PasswordService {
    */
   static async requestPasswordReset(email: string): Promise<ResetPasswordResponse> {
     try {
+      console.log('=== FRONTEND PASSWORD SERVICE DEBUG ===');
+      console.log('Email being sent:', email);
+      const payload = { email } as ResetPasswordRequest;
+      console.log('Payload being sent to API route:', payload);
+      console.log('API route URL:', "/api/forgot-password");
+      
       const response = await axios.post<ResetPasswordResponse>(
         "/api/forgot-password",
-        { email } as ResetPasswordRequest
+        payload
       );
 
+      console.log('API route response status:', response.status);
+      console.log('API route response data:', response.data);
+      console.log('=== END FRONTEND DEBUG ===');
       return response.data;
     } catch (error: any) {
       console.error("Password reset request error:", error);
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
       throw error;
     }
   }

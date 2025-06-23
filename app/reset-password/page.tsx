@@ -17,6 +17,7 @@ function ResetPasswordContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [token, setToken] = useState<string | null>(null)
+  const [pageLoaded, setPageLoaded] = useState(false)
   const [showPasswords, setShowPasswords] = useState({
     new: false,
     confirm: false
@@ -27,14 +28,40 @@ function ResetPasswordContent() {
   })
 
   useEffect(() => {
-    const tokenParam = searchParams.get('token')
-    if (!tokenParam) {
-      toast.error("Invalid reset link. Please request a new password reset.")
+    try {
+      console.log('Reset password page - FULL URL:', window.location.href)
+      console.log('Reset password page - searchParams:', searchParams.toString())
+      console.log('Reset password page - all params:', Object.fromEntries(searchParams.entries()))
+      const tokenParam = searchParams.get('token')
+      console.log('Reset password page - token:', tokenParam)
+      console.log('Reset password page - token length:', tokenParam?.length)
+      
+      if (!tokenParam || tokenParam.trim() === '') {
+        console.log('No token found, redirecting to login')
+        toast.error("Invalid reset link. Please request a new password reset.")
+        router.push("/login")
+        return
+      }
+      setToken(tokenParam)
+      setPageLoaded(true)
+    } catch (error) {
+      console.error('Error in reset password useEffect:', error)
+      toast.error("Error loading reset page. Please try again.")
       router.push("/login")
-      return
     }
-    setToken(tokenParam)
   }, [searchParams, router])
+
+  // Show loading if page hasn't loaded yet
+  if (!pageLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading reset page...</p>
+        </div>
+      </div>
+    )
+  }
 
   const handleInputChange = (field: keyof ForgotPasswordRequest, value: string) => {
     setFormData(prev => ({

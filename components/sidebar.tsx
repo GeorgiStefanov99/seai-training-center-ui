@@ -38,7 +38,7 @@ const getMenuItems = (userType: string) => {
     { name: "Active Courses", icon: Calendar, href: "/active-courses" },
     { name: "Online Courses", icon: Video, href: "/online-courses" },
     { name: "Waitlist", icon: ClipboardList, href: "/waitlist" },
-    { name: "Archive", icon: Archive, href: "/courses/archive" },
+            { name: "Archive", icon: Archive, href: "/active-courses/archive" },
     { name: "Documents", icon: FileText, href: "/documents" },
     { name: "Internal Documents", icon: FolderOpen, href: "/internal-documents" },
   ]
@@ -94,7 +94,7 @@ export function Sidebar({ mobileMenuOpen = false, onMobileMenuToggle }: SidebarP
             {menuItems.map((item) => (
               <a
                 key={item.name}
-                href={`${item.href}/`}
+                href={item.href}
                 className={`flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-primary-foreground/10 ${
                   pathname === item.href ? "bg-primary-foreground/20" : ""
                 } ${sidebarExpanded ? "justify-start" : "justify-center"}`}
@@ -121,7 +121,7 @@ export function Sidebar({ mobileMenuOpen = false, onMobileMenuToggle }: SidebarP
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">{user.email}</span>
                   <div className="flex flex-col gap-1 mt-1">
-                    <a href="/change-password/">
+                    <a href="/change-password">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -182,7 +182,7 @@ export function Sidebar({ mobileMenuOpen = false, onMobileMenuToggle }: SidebarP
             {menuItems.map((item) => (
               <a
                 key={item.name}
-                href={`${item.href}/`}
+                href={item.href}
                 className={`flex items-center gap-3 rounded-lg px-3 py-3 text-primary-foreground transition-colors hover:bg-primary-foreground/10 ${
                   pathname === item.href ? "bg-primary-foreground/20" : ""
                 }`}
@@ -203,7 +203,7 @@ export function Sidebar({ mobileMenuOpen = false, onMobileMenuToggle }: SidebarP
                 <div className="flex flex-col flex-1 min-w-0">
                   <span className="text-sm font-medium text-primary-foreground truncate">{user.email}</span>
                   <div className="flex flex-col gap-1 mt-1">
-                    <a href="/change-password/" onClick={toggleMobileMenu}>
+                    <a href="/change-password" onClick={toggleMobileMenu}>
                       <Button
                         variant="ghost"
                         size="sm"

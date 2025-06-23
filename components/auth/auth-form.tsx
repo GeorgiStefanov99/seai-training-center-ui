@@ -73,7 +73,7 @@ export function AuthForm() {
         <h1 className="text-2xl font-semibold tracking-tight">Training Center Login</h1>
         <p className="text-sm text-muted-foreground">Enter your credentials to continue</p>
       </div>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} method="POST">
         <div className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>

@@ -139,7 +139,7 @@ function ArchivedCourseDetailContent() {
   
   // Go back to archive page
   const handleGoBack = () => {
-    router.push("/courses/archive")
+            router.push("/active-courses/archive")
   }
   
   return (

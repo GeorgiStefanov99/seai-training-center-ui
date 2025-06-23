@@ -92,7 +92,7 @@ export default function Dashboard() {
   
   // Navigate to course details
   const navigateToCourse = (courseId: string) => {
-    router.push(`/courses/course-detail?id=${courseId}`)
+            router.push(`/active-courses/detail?id=${courseId}`)
   }
   
   // Render loading skeleton
@@ -419,7 +419,7 @@ export default function Dashboard() {
         </CardContent>
         <CardFooter>
           <Button variant="outline" className="w-full" asChild>
-            <Link href="/courses">View All Courses <ChevronRight className="h-4 w-4 ml-1" /></Link>
+                              <Link href="/active-courses">View All Courses <ChevronRight className="h-4 w-4 ml-1" /></Link>
           </Button>
         </CardFooter>
       </Card>

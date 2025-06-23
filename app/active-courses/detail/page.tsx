@@ -190,7 +190,7 @@ function CourseDetailContent() {
     try {
       await deleteCourse({ trainingCenterId, courseId: course.id })
       toast.success("Course deleted successfully")
-      router.push("/courses")
+      router.push("/active-courses")
     } catch (error) {
       console.error("Error deleting course:", error)
       toast.error("Failed to delete course. Please try again.")
@@ -280,7 +280,7 @@ function CourseDetailContent() {
   
   // Go back to courses page
   const handleGoBack = () => {
-    router.push("/courses")
+            router.push("/active-courses")
   }
   
   return (

@@ -787,7 +787,7 @@ function CourseTemplateDetailContent() {
                         <TableRow 
                           key={course.id} 
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => router.push(`/courses/detail?id=${course.id}`)}
+                          onClick={() => router.push(`/active-courses/detail?id=${course.id}`)}
                         >
                           <TableCell className="font-medium">{course.name}</TableCell>
                           <TableCell>{formatDate(course.startDate)}</TableCell>

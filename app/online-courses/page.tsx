@@ -41,7 +41,7 @@ export default function OnlineCoursesPage() {
             </div>
             
             <Button 
-              onClick={() => router.push("/courses")}
+              onClick={() => router.push("/active-courses")}
               className="mt-6"
               variant="outline"
             >
