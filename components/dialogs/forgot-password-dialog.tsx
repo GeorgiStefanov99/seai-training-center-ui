@@ -38,7 +38,7 @@ export function ForgotPasswordDialog({ children }: ForgotPasswordDialogProps) {
     try {
       const response = await PasswordService.requestPasswordReset(email.trim())
       setIsSubmitted(true)
-      toast.success(response.message)
+      toast.success(response.message || "Password reset email sent successfully")
     } catch (error) {
       console.error("Forgot password error:", error)
       toast.error(error instanceof Error ? error.message : "Failed to send reset email")

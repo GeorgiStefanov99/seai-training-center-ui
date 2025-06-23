@@ -72,7 +72,7 @@ export default function ChangePasswordPage() {
         formData
       )
       
-      toast.success(response.message)
+      toast.success(response.message || "Password changed successfully")
       
       // Clear form
       setFormData({
