@@ -123,7 +123,7 @@ export class PasswordService {
     resetPasswordRequest: ForgotPasswordRequest
   ): Promise<ResetPasswordResponse> {
     try {
-      const backendUrl = `${API_BASE_URL}${API_VERSION_PATH}/reset-password?token=${encodeURIComponent(token)}`;
+      const backendUrl = `${API_BASE_URL}${API_VERSION_PATH}/training-centers/reset-password?token=${encodeURIComponent(token)}`;
       
       const response = await axios.patch<ResetPasswordResponse>(
         backendUrl,

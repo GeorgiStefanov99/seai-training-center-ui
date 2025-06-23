@@ -16,7 +16,6 @@ function ResetPasswordContent() {
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-  const [token, setToken] = useState<string | null>(null)
   const [pageLoaded, setPageLoaded] = useState(false)
   const [showPasswords, setShowPasswords] = useState({
     new: false,
@@ -27,29 +26,23 @@ function ResetPasswordContent() {
     confirmPassword: ""
   })
 
+  // Extract token using the same pattern as attendee detail page
+  const token = searchParams.get("token")
+
   useEffect(() => {
-    try {
-      console.log('Reset password page - FULL URL:', window.location.href)
-      console.log('Reset password page - searchParams:', searchParams.toString())
-      console.log('Reset password page - all params:', Object.fromEntries(searchParams.entries()))
-      const tokenParam = searchParams.get('token')
-      console.log('Reset password page - token:', tokenParam)
-      console.log('Reset password page - token length:', tokenParam?.length)
-      
-      if (!tokenParam || tokenParam.trim() === '') {
-        console.log('No token found, redirecting to login')
-        toast.error("Invalid reset link. Please request a new password reset.")
-        router.push("/login")
-        return
-      }
-      setToken(tokenParam)
-      setPageLoaded(true)
-    } catch (error) {
-      console.error('Error in reset password useEffect:', error)
-      toast.error("Error loading reset page. Please try again.")
+    console.log('Reset password page - FULL URL:', window.location.href)
+    console.log('Reset password page - token:', token)
+    console.log('Reset password page - token length:', token?.length)
+    
+    if (!token || token.trim() === '') {
+      console.log('No token found, redirecting to login')
+      toast.error("Invalid reset link. Please request a new password reset.")
       router.push("/login")
+      return
     }
-  }, [searchParams, router])
+    
+    setPageLoaded(true)
+  }, [token, router])
 
   // Show loading if page hasn't loaded yet
   if (!pageLoaded) {
