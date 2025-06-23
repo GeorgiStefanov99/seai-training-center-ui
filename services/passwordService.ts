@@ -45,10 +45,8 @@ export const getAuthHeaders = (token: string | null): { Authorization: string } 
   return {};
 };
 
-// Base API URL - should be configured from environment variables in a real app
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.seai.co';
-
-// API version path
+// Base API URL - directly to backend since we can't use API routes in static export
+const API_BASE_URL = 'https://api.seai.co';
 const API_VERSION_PATH = '/api/v1';
 
 export class PasswordService {
@@ -60,22 +58,27 @@ export class PasswordService {
       console.log('=== FRONTEND PASSWORD SERVICE DEBUG ===');
       console.log('Email being sent:', email);
       const payload = { email } as ResetPasswordRequest;
-      console.log('Payload being sent to API route:', payload);
-      console.log('API route URL:', "/api/forgot-password");
+      console.log('Payload being sent to backend:', payload);
+      
+      const backendUrl = `${API_BASE_URL}${API_VERSION_PATH}/training-centers/forgot-password`;
+      console.log('Backend URL:', backendUrl);
       
       const response = await axios.post<ResetPasswordResponse>(
-        "/api/forgot-password",
-        payload
+        backendUrl,
+        payload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        }
       );
 
-      console.log('API route response status:', response.status);
-      console.log('API route response data:', response.data);
+
       console.log('=== END FRONTEND DEBUG ===');
       return response.data;
     } catch (error: any) {
-      console.error("Password reset request error:", error);
-      console.error("Error response:", error.response?.data);
-      console.error("Error status:", error.response?.status);
+
       throw error;
     }
   }
@@ -91,8 +94,10 @@ export class PasswordService {
       const token = getAuthToken();
       const headers = getAuthHeaders(token);
 
+      const backendUrl = `${API_BASE_URL}${API_VERSION_PATH}/training-centers/${trainingCenterId}/change-password`;
+      
       const response = await axios.patch<ResetPasswordResponse>(
-        `/api/change-password?trainingCenterId=${trainingCenterId}`,
+        backendUrl,
         changePasswordRequest,
         { 
           headers: {
@@ -118,9 +123,17 @@ export class PasswordService {
     resetPasswordRequest: ForgotPasswordRequest
   ): Promise<ResetPasswordResponse> {
     try {
+      const backendUrl = `${API_BASE_URL}${API_VERSION_PATH}/reset-password?token=${encodeURIComponent(token)}`;
+      
       const response = await axios.patch<ResetPasswordResponse>(
-        `/api/reset-password?token=${encodeURIComponent(token)}`,
-        resetPasswordRequest
+        backendUrl,
+        resetPasswordRequest,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        }
       );
 
       return response.data;
