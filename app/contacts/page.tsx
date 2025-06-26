@@ -52,6 +52,9 @@ export default function ContactsPage() {
     return contacts.filter(contact => {
       return (
         contact.nameOfOrganization?.toLowerCase().includes(query) ||
+        contact.firstName?.toLowerCase().includes(query) ||
+        contact.lastName?.toLowerCase().includes(query) ||
+        contact.position?.toLowerCase().includes(query) ||
         contact.email?.toLowerCase().includes(query) ||
         contact.phone?.toLowerCase().includes(query) ||
         false
@@ -104,9 +107,11 @@ export default function ContactsPage() {
     try {
       const response = await getAllContacts(trainingCenterId)
       setContacts(response)
+      setError(null)
     } catch (err) {
       console.error('Error refreshing contacts:', err)
-      toast.error('Failed to refresh contacts')
+      setError('Failed to refresh contacts')
+      throw err // Re-throw to allow calling function to handle
     }
   }
 
@@ -132,10 +137,16 @@ export default function ContactsPage() {
   const handleCreateSubmit = async (data: any) => {
     try {
       setIsSubmitting(true)
+      
+      // Create the contact
       await createContact({ trainingCenterId }, data)
+      
+      // Refresh contacts first
+      await refreshContacts()
+      
+      // Show success message and close dialog after successful creation and refresh
       toast.success('Contact created successfully')
       setCreateDialogOpen(false)
-      await refreshContacts()
     } catch (error) {
       console.error('Error creating contact:', error)
       toast.error('Failed to create contact')
@@ -150,16 +161,22 @@ export default function ContactsPage() {
     
     try {
       setIsSubmitting(true)
+      
+      // Update the contact
       await updateContact({ trainingCenterId, contactId: selectedContact.id }, data)
+      
+      // Show success message
       toast.success('Contact updated successfully')
-      setEditDialogOpen(false)
-      await refreshContacts()
+      
+      // Refresh the page to ensure clean state
+      window.location.reload()
+      
     } catch (error) {
       console.error('Error updating contact:', error)
       toast.error('Failed to update contact')
-    } finally {
       setIsSubmitting(false)
     }
+    // Note: No finally block needed since page will refresh on success
   }
 
   // Handle delete confirmation
@@ -168,10 +185,17 @@ export default function ContactsPage() {
     
     try {
       setIsDeleting(true)
+      
+      // Delete the contact
       await deleteContact({ trainingCenterId, contactId: selectedContact.id })
+      
+      // Refresh contacts first
+      await refreshContacts()
+      
+      // Show success message and close dialog after successful deletion and refresh
       toast.success('Contact deleted successfully')
       setDeleteDialogOpen(false)
-      await refreshContacts()
+      setSelectedContact(undefined)
     } catch (error) {
       console.error('Error deleting contact:', error)
       toast.error('Failed to delete contact')
@@ -187,20 +211,52 @@ export default function ContactsPage() {
       header: "Organization",
       accessorKey: "nameOfOrganization",
       cell: (row: Contact) => (
-        <div className="flex items-center gap-2">
-          <Building className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{row.nameOfOrganization}</span>
-        </div>
+        <div className="font-medium">{row.nameOfOrganization}</div>
       ),
+    },
+    {
+      key: "contactPerson",
+      header: "Contact Person",
+      accessorKey: "firstName",
+      cell: (row: Contact) => {
+        const firstName = row.firstName;
+        const lastName = row.lastName;
+        if (firstName || lastName) {
+          return (
+            <div>
+              {[firstName, lastName].filter(Boolean).join(" ")}
+            </div>
+          );
+        }
+        return <span className="text-muted-foreground">Not provided</span>;
+      },
+    },
+    {
+      key: "position",
+      header: "Position",
+      accessorKey: "position",
+      cell: (row: Contact) => {
+        const position = row.position;
+        if (position) {
+          return <div>{position}</div>;
+        }
+        return <span className="text-muted-foreground">Not provided</span>;
+      },
     },
     {
       key: "email",
       header: "Email",
       accessorKey: "email",
       cell: (row: Contact) => (
-        <div className="flex items-center gap-2">
-          <Mail className="h-4 w-4 text-muted-foreground" />
-          <span>{row.email || "-"}</span>
+        <div className="flex items-center">
+          {row.email ? (
+            <>
+              <Mail className="mr-2 h-4 w-4 text-muted-foreground" />
+              {row.email}
+            </>
+          ) : (
+            <span className="text-muted-foreground">Not provided</span>
+          )}
         </div>
       ),
     },
@@ -334,7 +390,13 @@ export default function ContactsPage() {
       {/* Edit Contact Dialog */}
       <ContactDialog
         open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open)
+          if (!open) {
+            // Clear selected contact when dialog closes to prevent state issues
+            setSelectedContact(undefined)
+          }
+        }}
         contact={selectedContact}
         onSubmit={handleUpdateSubmit}
         isLoading={isSubmitting}

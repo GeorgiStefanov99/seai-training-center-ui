@@ -3,6 +3,9 @@
 // Base contact properties
 export interface ContactBase {
   nameOfOrganization: string;
+  firstName?: string;
+  lastName?: string;
+  position?: string;
   email?: string;
   phone?: string;
 }
@@ -10,6 +13,9 @@ export interface ContactBase {
 // Interface for creating a new contact (POST request)
 export interface CreateContactRequest {
   nameOfOrganization: string;
+  firstName?: string;
+  lastName?: string;
+  position?: string;
   email?: string;
   phone?: string;
 }
@@ -17,6 +23,9 @@ export interface CreateContactRequest {
 // Interface for updating an existing contact (PUT request)
 export interface UpdateContactRequest {
   nameOfOrganization?: string;
+  firstName?: string;
+  lastName?: string;
+  position?: string;
   email?: string;
   phone?: string;
 }
@@ -25,6 +34,9 @@ export interface UpdateContactRequest {
 export interface Contact {
   id: string;
   nameOfOrganization: string;
+  firstName?: string;
+  lastName?: string;
+  position?: string;
   email?: string;
   phone?: string;
 }
@@ -33,6 +45,9 @@ export interface Contact {
 export interface CreateContactResponse {
   id: string;
   nameOfOrganization: string;
+  firstName?: string;
+  lastName?: string;
+  position?: string;
   email?: string;
   phone?: string;
 }

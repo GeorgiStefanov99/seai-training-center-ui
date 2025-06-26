@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -23,6 +23,21 @@ const formSchema = z.object({
     .string()
     .min(1, "Organization name is required")
     .max(255, "Organization name must not exceed 255 characters"),
+  firstName: z
+    .string()
+    .max(100, "First name must not exceed 100 characters")
+    .optional()
+    .or(z.literal("")),
+  lastName: z
+    .string()
+    .max(100, "Last name must not exceed 100 characters")
+    .optional()
+    .or(z.literal("")),
+  position: z
+    .string()
+    .max(100, "Position must not exceed 100 characters")
+    .optional()
+    .or(z.literal("")),
   email: z
     .string()
     .email("Please enter a valid email address")
@@ -56,19 +71,45 @@ export function ContactForm({
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      nameOfOrganization: contact?.nameOfOrganization || "",
-      email: contact?.email || "",
-      phone: contact?.phone || "",
+      nameOfOrganization: "",
+      firstName: "",
+      lastName: "",
+      position: "",
+      email: "",
+      phone: "",
     },
   })
+
+  // Reset form when contact data changes or dialog opens/closes
+  useEffect(() => {
+    const formValues = {
+      nameOfOrganization: contact?.nameOfOrganization || "",
+      firstName: contact?.firstName || "",
+      lastName: contact?.lastName || "",
+      position: contact?.position || "",
+      email: contact?.email || "",
+      phone: contact?.phone || "",
+    }
+    
+    // Force reset with new values
+    form.reset(formValues)
+    
+    // Clear any form state errors
+    form.clearErrors()
+  }, [contact, form, mode])
 
   const handleSubmit = (data: FormData) => {
     // Clean up empty strings to undefined for optional fields
     const cleanedData = {
       ...data,
+      firstName: data.firstName?.trim() || undefined,
+      lastName: data.lastName?.trim() || undefined,
+      position: data.position?.trim() || undefined,
       email: data.email?.trim() || undefined,
       phone: data.phone?.trim() || undefined,
     }
+    
+    // Submit the cleaned data
     onSubmit(cleanedData)
   }
 
@@ -91,6 +132,72 @@ export function ContactForm({
               </FormControl>
               <FormDescription>
                 The name of the organization or company
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* First Name Field */}
+        <FormField
+          control={form.control}
+          name="firstName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>First Name</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Enter first name"
+                  {...field}
+                  disabled={isLoading}
+                />
+              </FormControl>
+              <FormDescription>
+                Contact person's first name (optional)
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Last Name Field */}
+        <FormField
+          control={form.control}
+          name="lastName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Last Name</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Enter last name"
+                  {...field}
+                  disabled={isLoading}
+                />
+              </FormControl>
+              <FormDescription>
+                Contact person's last name (optional)
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Position Field */}
+        <FormField
+          control={form.control}
+          name="position"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Position</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Enter position"
+                  {...field}
+                  disabled={isLoading}
+                />
+              </FormControl>
+              <FormDescription>
+                Contact person's position in the organization (optional)
               </FormDescription>
               <FormMessage />
             </FormItem>

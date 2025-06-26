@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -43,21 +43,32 @@ export function ContactDialog({
     ? "Add a new contact to your training center."
     : "Update the contact information."
 
+  // Handle dialog state change with proper cleanup
+  const handleOpenChange = (newOpen: boolean) => {
+    onOpenChange(newOpen)
+  }
+
+  // Force form remount when dialog opens by using open state in key
+  const formKey = `${mode}-${contact?.id || 'new'}-${open ? 'open' : 'closed'}`
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         
-        <ContactForm
-          contact={contact}
-          onSubmit={onSubmit}
-          onCancel={() => onOpenChange(false)}
-          isLoading={isLoading}
-          mode={mode}
-        />
+        {open && (
+          <ContactForm
+            key={formKey}
+            contact={contact}
+            onSubmit={onSubmit}
+            onCancel={() => handleOpenChange(false)}
+            isLoading={isLoading}
+            mode={mode}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )
